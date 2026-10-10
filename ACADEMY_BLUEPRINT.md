@@ -33,28 +33,37 @@ Every script, scenario, and tool in this platform strictly adheres to these five
 
 ---
 
-## 3. The 15-Lesson Starter Bootcamp (Traditional Bash, Spiced Up)
+## 3. The 20-Lesson Starter Bootcamp (Core Bash + Applied Automation)
 
 * **Module 1: Variables, Quoting & String Surgery**
-  * `0.01: The Space Landmine` — Word-splitting & unquoted variables in automated cleanup bots.
-  * `0.02: Default Fallbacks & Guards` — Parameter expansion defaults (`${VAR:-default}`, `${VAR:?error}`).
-  * `0.03: The String Surgeon` — Stripping paths & extensions in-memory (`${VAR##*/}`, `${VAR%.*}`).
-  * `0.04: Pure In-Memory Replace` — Text substitution with `${VAR//bad/good}` without spawning `sed`.
-* **Module 2: Conditionals, Numbers & Comparisons**
-  * `0.05: The Bracket Duel` — Why `[` crashes on empty strings, and why modern `[[ ]]` wins.
-  * `0.06: Integer Arithmetic` — Arithmetic expansion `(( x = a + b ))`, `(( count++ ))` vs `expr`.
-  * `0.07: Pattern Matching in [[ ]]` — Glob matching `[[ $FILE == *.log ]]` and regex `[[ $IP =~ ^[0-9]+ ]]`.
-* **Module 3: Control Flow & Safe Loops**
-  * `0.08: Stream-Safe While Loops` — Reading lines cleanly with `while IFS= read -r line`.
-  * `0.09: The Subshell Ghost` — Why piping into loops erases variables, and fixing with `< <(cmd)`.
-  * `0.10: The Command Dispatcher` — Clean multi-branch routing with `case "$ACTION" in ... esac`.
-* **Module 4: Functions & Scoping Discipline**
-  * `0.11: The Variable Leak` — Preventing global scope pollution using `local`.
-  * `0.12: Flag & Argument Parsing` — Handling `$1`, `$2`, `$#`, and stepping through flags with `shift`.
-  * `0.13: Short-Circuit Guard Rails` — Replacing 10-line if-trees with `command || { exit 1; }`.
-* **Module 5: Streams, Traps & Exit Codes**
-  * `0.14: Heredoc Template Forge` — Generating clean multi-line configs with `cat <<'EOF' > app.conf`.
-  * `0.15: The Exit Code Contract` — Explicit error signaling with `exit 0/1/2` and reading `$?`.
+  * `0.01: The Space Landmine` — Word-splitting & unquoted variables in automated cleanup bot.
+  * `0.02: Default Fallbacks & Guards` — Parameter expansion defaults (`${VAR:-default}`, `${VAR:?error}`) in an env/config injector.
+  * `0.03: The String Surgeon` — In-memory path and extension stripping (`${VAR##*/}`, `${VAR%.*}`) for automated artifact sorting.
+  * `0.04: Pure In-Memory Replace` — Bulk sanitization with `${VAR//bad/good}` without spawning slow `sed` subprocesses.
+
+* **Module 2: Conditionals, Numbers & File Tests**
+  * `0.05: The Bracket Duel` — Why `[` crashes on empty strings, and why modern `[[ ]]` wins for automated validation.
+  * `0.06: Integer Arithmetic` — Arithmetic expansion `(( x = a + b ))`, `(( count++ ))` for metric aggregation vs subshell fork bombs.
+  * `0.07: Pattern Matching in [[ ]]` — Glob matching `[[ $FILE == *.log ]]` and regex `[[ $IP =~ ^[0-9]+ ]]` in an automated log classifier.
+  * `0.08: The File Inspector` — Automated filesystem health checks using `-f`, `-d`, `-s`, `-x` test operators.
+
+* **Module 3: Control Flow, Safe Loops & Streams**
+  * `0.09: Stream-Safe While Loops` — Reading lines cleanly with `while IFS= read -r line` without trimming spaces or backslashes.
+  * `0.10: The Subshell Ghost` — Why piping into loops erases variables, and fixing with `< <(cmd)` process substitution.
+  * `0.11: The Command Dispatcher` — Clean multi-branch CLI command routing with `case "$ACTION" in ... esac`.
+  * `0.12: The Stream Contract` — Splitting stdout `>` and stderr `2>` streams cleanly to prevent downstream triage contamination.
+
+* **Module 4: Functions, Scoping & Argument Discipline**
+  * `0.13: The Variable Leak` — Preventing global scope pollution in automation libraries using `local`.
+  * `0.14: Flag & Argument Parsing` — Handling `$1`, `$2`, `$#`, and stepping through flags with `shift`.
+  * `0.15: Short-Circuit Guard Rails` — Replacing verbose if-trees with `command || { exit 1; }` fail-fast patterns.
+  * `0.16: The Defensive Shield` — Bulletproofing scripts against silent failures with `set -euo pipefail`.
+
+* **Module 5: Resilient Automation & Systems Traps**
+  * `0.17: The Exit Trap & Cleanup` — Guaranteeing sandbox zero-pollution with `trap 'cleanup' EXIT`.
+  * `0.18: The Lockfile Mutex` — Preventing duplicate bot runs with atomic directory locking (`mkdir`).
+  * `0.19: The Exponential Backoff Retry Loop` — Automated polling with exponential sleep backoff against flaky services.
+  * `0.20: Heredoc Template Forge` — Dynamically generating complex config files safely with `cat <<'EOF' > config`.
 
 ---
 

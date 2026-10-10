@@ -1,0 +1,34 @@
+id: "act-0-10-subshell-ghost"
+act: 0
+order: 10
+title: "The Subshell Ghost"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated financial ledger audit bot ('auditor.sh') always outputs 'FINAL_AUDIT_TOTAL=0' even though 'ledger.csv' contains thousands of dollars in transactions. The developer piped the stream into a while loop ('cat ... | while ...'), trapping variable mutations inside an ephemeral subshell."
+  objective: "Refactor 'auditor.sh' to feed the loop without piping: use process substitution '< <(tail -n +2 ledger.csv)' or file redirection to execute the loop in the main shell context, allowing 'total_amount' to survive and output the correct sum."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "auditor.sh"
+      dest: "workspace/auditor.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'auditor.sh' executes with exit code 0"
+    - "No pipeline '| while' construct used"
+    - "Outputs 'FINAL_AUDIT_TOTAL=3750' to stdout and saves to 'audit.out'"
+
+hints:
+  - "Each command in a pipeline runs in its own subshell. Variables modified inside a piped loop vanish when the loop terminates."
+  - "To feed a command's output into a loop without piping, use process substitution: 'done < <(command)'."
+  - "Alternatively, redirect the file directly: 'done < ledger.csv'."

@@ -1,0 +1,35 @@
+id: "act-0-19-retry-loop"
+act: 0
+order: 19
+title: "The Exponential Backoff Retry Loop"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated deployment probe ('probe.sh') queries an upstream microservice ('./mock_service.sh'). Because microservices take a few moments to warm up, the probe fails immediately on the first attempt, crashing the CI pipeline. In addition, previous retry attempts created CPU busy-wait loops."
+  objective: "Refactor 'probe.sh' into an automated polling loop with exponential backoff: retry up to MAX_RETRIES=4 times, starting with initial delay SLEEP_SEC=0.05s, doubling delay on each failure ('(( delay *= 2 ))'). Exit 0 and print 'SERVICE_READY' once the service succeeds, or exit 1 if max retries are exceeded."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "probe.sh"
+      dest: "workspace/probe.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'probe.sh' uses while retry loop with exponential backoff"
+    - "Retries flaky service until ready and exits 0"
+    - "Exits 1 with 'PROBE_TIMEOUT' when service never recovers"
+    - "Execution completes in under 1 second"
+
+hints:
+  - "Maintain loop counters: 'attempt=1', 'max_attempts=4', 'delay=0.05'."
+  - "Test service readiness: 'if ./mock_service.sh; then echo \"SERVICE_READY\"; exit 0; fi'."
+  - "Double delay using Bash math or bc (for fractional seconds, e.g. python/awk or delay integer in ms, or keep simple delay in ms and sleep $delay): 'sleep \"$delay\"'."

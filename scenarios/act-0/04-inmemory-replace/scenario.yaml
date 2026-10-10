@@ -1,0 +1,35 @@
+id: "act-0-04-inmemory-replace"
+act: 0
+order: 4
+title: "Pure In-Memory Replace"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated log shipping daemon must scrub sensitive internal data before exporting 'events.raw' to an external monitoring vendor. The junior engineer attempted to pipe each line into 'sed', resulting in process exhaustion."
+  objective: "Refactor 'sanitizer.sh' to perform string transformation in-memory using '${VAR//pattern/replacement}': replace all occurrences of 'dev.internal' with 'prod.external', and replace 'SECRET_' with 'REDACTED_' without calling 'sed' or 'awk'."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "sanitizer.sh"
+      dest: "workspace/sanitizer.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'sanitizer.sh' executes with exit code 0"
+    - "No external subshell processes ('sed', 'awk', 'perl') spawned"
+    - "Generates 'events.sanitized' with all 'dev.internal' instances replaced by 'prod.external'"
+    - "All 'SECRET_' tokens replaced by 'REDACTED_'"
+
+hints:
+  - "To replace the first occurrence of a pattern: '${VAR/pattern/replacement}'."
+  - "To replace ALL occurrences of a pattern globally: '${VAR//pattern/replacement}'."
+  - "To delete a pattern, omit the replacement: '${VAR//pattern/}'."

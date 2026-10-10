@@ -1,0 +1,34 @@
+id: "act-0-06-integer-arithmetic"
+act: 0
+order: 6
+title: "Integer Arithmetic"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated metric rollup bot ('aggregator.sh') analyzes traffic samples from 'samples.log'. The script relies on archaic 'expr' subshell calls to do arithmetic, causing process exhaustion and failing to compute the average latency and error percentage."
+  objective: "Refactor 'aggregator.sh' to use native Bash arithmetic: increment counters with '(( count++ ))', accumulate sums with '(( total += val ))', and calculate integer metrics using '$(( ... ))' without spawning external 'expr' or 'bc' commands."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "aggregator.sh"
+      dest: "workspace/aggregator.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'aggregator.sh' executes with exit code 0"
+    - "No external 'expr' or 'bc' subprocesses spawned"
+    - "Generates 'summary.txt' with correct TOTAL_COUNT, AVG_LATENCY, and ERR_PCT"
+
+hints:
+  - "To perform arithmetic without capturing output: '(( count++ ))' or '(( total += val ))'."
+  - "To capture the result of arithmetic: 'AVG=$(( total / count ))'."
+  - "Inside '(( ... ))' and '$(( ... ))', variables do not need dollar signs: '$(( total / count ))' works directly."

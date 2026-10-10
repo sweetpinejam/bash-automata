@@ -1,0 +1,35 @@
+id: "act-0-03-string-surgeon"
+act: 0
+order: 3
+title: "The String Surgeon"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated artifact pipeline receives deployment packages in 'incoming/'. The legacy sorting script relies on spawning slow external commands ('basename', 'dirname', 'cut') which thrash subprocess limits. We need a pure in-memory shell solution."
+  objective: "Refactor 'sorter.sh' using native Bash parameter expansion: extract the filename using '${VAR##*/}' and the extension using '${VAR##*.}' to sort incoming artifacts into 'categorized/<ext>/<filename>' without calling external binaries."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "sorter.sh"
+      dest: "workspace/sorter.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'sorter.sh' executes with exit code 0"
+    - "No external subshell processes ('basename', 'dirname', 'cut', 'sed') spawned"
+    - "Files correctly moved to 'categorized/gz/', 'categorized/js/', and 'categorized/sql/'"
+    - "Original files preserved and properly sorted"
+
+hints:
+  - "To strip everything up to the last slash (getting the basename): '${filepath##*/}'."
+  - "To strip everything up to the last dot (getting the extension): '${filename##*.}'."
+  - "To strip everything after the first dot: '${filename%%.*}'."

@@ -1,0 +1,36 @@
+id: "act-0-09-stream-safe-loop"
+act: 0
+order: 9
+title: "Stream-Safe While Loops"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated configuration compiler ('compiler.sh') reads 'template.conf' and writes 'final.conf'. It was written using a broken 'for line in $(cat ...)' loop, which word-splits on spaces, completely destroys code indentation, and corrupts backslash escape sequences."
+  objective: "Refactor 'compiler.sh' to use the canonical Bash stream-safe loop: 'while IFS= read -r line || [[ -n \"$line\" ]]; do ... done < template.conf'. Ensure exact leading indentation, tabs, backslashes, and final un-terminated lines are 100% preserved."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "compiler.sh"
+      dest: "workspace/compiler.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'compiler.sh' executes with exit code 0"
+    - "Uses 'while IFS= read -r line' construct"
+    - "No 'for ... in $(cat ...)' or '$(<...)' loops"
+    - "'final.conf' matches 'template.conf' byte-for-byte with exact indentation and backslashes preserved"
+
+hints:
+  - "Never iterate lines with 'for line in $(cat file)' — the shell splits by words, not lines."
+  - "'IFS=' prevents 'read' from stripping leading and trailing spaces/tabs."
+  - "'-r' prevents 'read' from interpreting backslash '\\' as an escape character."
+  - "Append '|| [[ -n \"$line\" ]]' to prevent skipping the last line if it lacks a trailing newline."

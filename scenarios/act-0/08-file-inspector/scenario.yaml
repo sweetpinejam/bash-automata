@@ -1,0 +1,36 @@
+id: "act-0-08-file-inspector"
+act: 0
+order: 8
+title: "The File Inspector"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated deployment runner ('preflight.sh') launches services blindly without checking prerequisites. When configuration files are zero-byte empty or service binaries lack execute permissions, deployments fail abruptly in production."
+  objective: "Harden 'preflight.sh' using Bash file test operators: verify that 'config/app.conf' exists and is non-empty ('-s'), that 'releases/' is an actual directory ('-d'), and that 'bin/app' has executable permissions ('-x'). Exit 1 on any check failure, or exit 0 when all pass."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "preflight.sh"
+      dest: "workspace/preflight.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'preflight.sh' exits 0 and prints 'ALL_CHECKS_PASSED' when all prerequisites exist and are valid"
+    - "'preflight.sh' fails if 'config/app.conf' is empty (zero bytes)"
+    - "'preflight.sh' fails if 'releases/' is not a directory"
+    - "'preflight.sh' fails if 'bin/app' is not executable"
+    - "Uses '-s', '-d', and '-x' test operators"
+
+hints:
+  - "Test if file exists and has size > 0: '[[ -s \"$file\" ]]'"
+  - "Test if directory exists: '[[ -d \"$dir\" ]]'"
+  - "Test if file is executable: '[[ -x \"$bin\" ]]'"

@@ -1,0 +1,35 @@
+id: "act-0-14-flag-parsing"
+act: 0
+order: 14
+title: "Flag & Argument Parsing"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated database migration utility ('migrator.sh') naively assumes options are passed in a hardcoded order ('$1' must be '--env', '$2' must be the environment). When CI passes flags in a different order (e.g. '--dry-run --env production'), it misparses values and fails."
+  objective: "Refactor 'migrator.sh' using a standard 'while (( $# > 0 ))' loop and 'shift' statement: support '--env|-e <val>', '--dry-run|-d', and '--verbose|-v' in ANY order. Save the parsed configuration into 'migration.cfg'."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "migrator.sh"
+      dest: "workspace/migrator.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'migrator.sh' uses 'while (( $# > 0 ))' and 'shift'"
+    - "Correctly parses '--dry-run' regardless of position"
+    - "Correctly captures '--env production' when preceded by boolean flags"
+    - "Generates valid 'migration.cfg' with ENV, DRY_RUN, and VERBOSE keys"
+
+hints:
+  - "Check the number of remaining arguments with '$#' in a loop: 'while (( $# > 0 )); do'."
+  - "For boolean flags, set the variable and shift 1: 'DRY_RUN=true; shift ;;'"
+  - "For options that take a value, capture '$2' and shift 2: 'ENV=\"$2\"; shift 2 ;;'"

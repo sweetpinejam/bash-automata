@@ -1,0 +1,35 @@
+id: "act-0-15-guard-rails"
+act: 0
+order: 15
+title: "Short-Circuit Guard Rails"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated build publication pipeline ('publisher.sh') contains deeply nested 5-level if statements ('if [ $? -eq 0 ]...'). It continues attempting downstream deployment steps even when test assertions fail, uploading unverified binaries."
+  objective: "Refactor 'publisher.sh' to use modern shell short-circuit fail-fast guard rails: 'command || { log_error; exit 1; }'. Eliminate all nested if-statements and ensure execution terminates immediately upon any step failure."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "publisher.sh"
+      dest: "workspace/publisher.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'publisher.sh' uses short-circuit '|| { ...; }' guard patterns"
+    - "No nested 'if [ $? -eq 0 ]' chains"
+    - "Immediately halts with non-zero exit code when any step fails"
+    - "Completes all steps and prints 'PUBLISH_SUCCESS' when all steps pass"
+
+hints:
+  - "Replace nested if checks with: 'step_command || { echo \"ERROR: Step failed\" >&2; exit 1; }'."
+  - "The braces '{ ...; }' create a command group. Notice the required trailing semicolon before '}'."
+  - "Short-circuiting flattens deeply nested code into clean, sequential, readable guard rails."

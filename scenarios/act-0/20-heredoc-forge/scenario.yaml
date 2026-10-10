@@ -1,0 +1,35 @@
+id: "act-0-20-heredoc-forge"
+act: 0
+order: 20
+title: "Heredoc Template Forge"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated infrastructure provisioner ('forge.sh') generates a systemd service file ('service.conf') and a helper runner ('run.sh'). It used unescaped heredocs, causing literal systemd directives like '$MAINPID' to expand into empty strings, corrupting the generated configuration."
+  objective: "Refactor 'forge.sh' to use precise heredoc templating: use an unquoted heredoc ('cat <<EOF') with escaped '\\$MAINPID' to interpolate deploy variables while preserving systemd directives, and use a quoted heredoc ('cat <<'EOF'') to generate 'run.sh' with literal '$1' intact."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "forge.sh"
+      dest: "workspace/forge.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'forge.sh' executes with exit code 0"
+    - "Generates 'service.conf' with interpolated APP_NAME and PORT"
+    - "'service.conf' contains literal '$MAINPID' (not an empty string)"
+    - "Generates 'run.sh' with literal '$1' and executable permissions"
+
+hints:
+  - "When the heredoc delimiter is quoted ('<<'EOF''), all expansions are disabled and text is treated literally."
+  - "When the delimiter is unquoted ('<<EOF'), variables expand. To keep a literal dollar sign, escape it: '\\$MAINPID'."
+  - "To strip leading tabs in indented heredocs, use '<<-EOF'."

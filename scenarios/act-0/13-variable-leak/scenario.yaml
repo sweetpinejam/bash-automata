@@ -1,0 +1,34 @@
+id: "act-0-13-variable-leak"
+act: 0
+order: 13
+title: "The Variable Leak"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated multi-day backup job ('backup_bot.sh') is intended to archive days 1 through 5. However, it prematurely halts after Day 1. A helper function modifies index 'i' without 'local' scoping, clobbering the main loop counter in global memory."
+  objective: "Harden 'backup_bot.sh' by properly scoping helper function variables using the 'local' keyword ('local i', 'local dest'). Ensure the outer loop successfully processes all 5 backup days into 'backup_report.txt'."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "backup_bot.sh"
+      dest: "workspace/backup_bot.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'backup_bot.sh' executes with exit code 0"
+    - "Uses 'local' variable scoping inside functions"
+    - "All 5 days (Day 1 through Day 5) processed and logged to 'backup_report.txt'"
+
+hints:
+  - "In Bash, all variables assigned inside a function are global unless explicitly declared with 'local'."
+  - "Inside helper functions, declare local variables at the top: 'local i dest chunk'."
+  - "Global scope pollution is a leading cause of mysterious loop terminations in shell scripts."

@@ -1,0 +1,35 @@
+id: "act-0-18-lockfile-mutex"
+act: 0
+order: 18
+title: "The Lockfile Mutex"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated sync daemon ('worker.sh') triggers via scheduled automation. A race condition occurs when concurrent runs start simultaneously: the existing naive 'if [ -f lock ]' check suffers from a Time-of-Check to Time-of-Use (TOCTOU) race condition, permitting concurrent overlapping runs that corrupt the database."
+  objective: "Refactor 'worker.sh' to implement an atomic mutual exclusion lock using 'mkdir \"$LOCKDIR\"'. If the lock already exists, print 'LOCK_ACQUIRE_FAILED' and exit 1 immediately. When acquired, register an EXIT trap to ensure the lock directory is unlinked automatically."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "worker.sh"
+      dest: "workspace/worker.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'worker.sh' uses atomic 'mkdir' for mutual exclusion"
+    - "Registers an EXIT trap to release the lock on completion"
+    - "First worker acquires lock and completes with 'SYNC_SUCCESS'"
+    - "Second concurrent worker detects existing lock, outputs 'LOCK_ACQUIRE_FAILED', and exits 1"
+
+hints:
+  - "In POSIX/Linux, 'mkdir' is atomic at the filesystem kernel level; 'test -f' followed by 'touch' is NOT atomic."
+  - "Attempt lock acquisition with: 'mkdir \"$LOCKDIR\" 2>/dev/null || { echo \"LOCK_ACQUIRE_FAILED\"; exit 1; }'."
+  - "Always pair lock creation with an EXIT trap: 'trap 'rmdir \"$LOCKDIR\"' EXIT'."
