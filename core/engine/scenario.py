@@ -41,6 +41,7 @@ class Scenario:
     initial_files: List[ScenarioFile]
     verification: ScenarioVerification
     dir_path: Path
+    hints: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], dir_path: Path) -> Scenario:
@@ -66,6 +67,8 @@ class Scenario:
             pass_criteria=verif_raw.get("pass_criteria", []),
         )
 
+        hints = [str(h) for h in data.get("hints", [])]
+
         return cls(
             id=data.get("id", dir_path.name),
             act=int(data.get("act", 1)),
@@ -79,6 +82,7 @@ class Scenario:
             initial_files=initial_files,
             verification=verification,
             dir_path=dir_path,
+            hints=hints,
         )
 
     @classmethod
@@ -139,7 +143,10 @@ class Scenario:
                 while idx < len(items) and items[idx][0] == curr_indent and items[idx][1].startswith("- "):
                     line_content = items[idx][1][2:].strip()
                     idx += 1
-                    if ":" in line_content:
+                    is_quoted = (line_content.startswith('"') and line_content.endswith('"')) or (
+                        line_content.startswith("'") and line_content.endswith("'")
+                    )
+                    if ":" in line_content and not is_quoted:
                         k, v = line_content.split(":", 1)
                         k, v = k.strip(), v.strip()
                         item_dict: Dict[str, Any] = {}

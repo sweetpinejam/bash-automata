@@ -41,6 +41,13 @@ def build_parser() -> argparse.ArgumentParser:
     reset_p = subparsers.add_parser("reset", help="Instant rollback to clean scenario state (<2s)")
     reset_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
 
+    # automata play / interactive
+    subparsers.add_parser("play", help="Launch interactive full-screen wargame menu")
+
+    # automata hint <id>
+    hint_p = subparsers.add_parser("hint", help="Request tactical intel & hints for scenario")
+    hint_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
+
     # automata doctor
     subparsers.add_parser("doctor", help="Audit host environment, kernel cgroups, and tools")
 
@@ -53,9 +60,10 @@ def main(args: Optional[List[str]] = None) -> int:
 
     runner = AutomataRunner()
 
-    if parsed.command is None:
-        print(UI.banner())
-        parser.print_help()
+    if parsed.command is None or parsed.command == "play":
+        from core.engine.game import InteractiveGame
+        game = InteractiveGame(runner)
+        game.run()
         return 0
 
     if parsed.command == "list":
@@ -72,6 +80,8 @@ def main(args: Optional[List[str]] = None) -> int:
         runner.verify_scenario(parsed.id)
     elif parsed.command == "reset":
         runner.reset_scenario(parsed.id)
+    elif parsed.command == "hint":
+        runner.hint_scenario(parsed.id)
     elif parsed.command == "doctor":
         runner.doctor()
     else:

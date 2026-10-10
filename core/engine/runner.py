@@ -169,6 +169,34 @@ class AutomataRunner:
         self.state.record_start(scenario.id, scenario.act, str(workspace))
         UI.success(f"Workspace restored to pristine state in under 2s at: {workspace}")
 
+    def hint_scenario(self, scenario_id: str) -> None:
+        scenario = self.registry.get_by_id(scenario_id)
+        if not scenario:
+            UI.failure(f"Scenario '{scenario_id}' not found.")
+            return
+
+        UI.heading(f"Tactical Intel & Hints: {scenario.title}")
+        if not scenario.hints:
+            UI.info("No specific tactical hints recorded for this incident.")
+            return
+
+        for i, h in enumerate(scenario.hints, 1):
+            badge = UI.colorize(f"[{i}]", Colors.BRIGHT_YELLOW, Colors.BOLD)
+            print(f" {badge} {h}")
+        print()
+
+    def get_workspace_path(self, scenario_id: str) -> Optional[Path]:
+        scenario = self.registry.get_by_id(scenario_id)
+        if not scenario:
+            return None
+        rec = self.state.get_scenario(scenario_id)
+        if rec and rec.get("sandbox_path"):
+            p = Path(rec["sandbox_path"])
+            if p.exists():
+                return p
+        default_p = Path.home() / ".automata" / "sandboxes" / scenario.id / scenario.workspace_dir
+        return default_p if default_p.exists() else None
+
     def doctor(self) -> None:
         doc = Doctor()
         doc.run_all()

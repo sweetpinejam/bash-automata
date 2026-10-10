@@ -30,3 +30,9 @@ verification:
     - "Zero records lost across high-throughput telemetry stream"
     - "Peak resident memory (RSS) stays strictly under 64MB"
     - "Graceful shutdown with zero orphan processes or leaking descriptors"
+
+hints:
+  - "Synchronous pipes (cat | python3) block when the Python consumer pauses or garbage-collects."
+  - "Decouple stream ingestion using a named pipe: 'FIFO=/tmp/stream_$$.fifo; mkfifo \"$FIFO\"'."
+  - "Always trap signals to unlink temporary pipes: 'trap '\''rm -f \"$FIFO\"'\'' EXIT INT TERM'."
+  - "In Python, read binary chunks using 'with open(FIFO, \"rb\") as f: f.readinto(buffer)' instead of line decoding."
