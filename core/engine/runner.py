@@ -185,6 +185,29 @@ class AutomataRunner:
             print(f" {badge} {h}")
         print()
 
+    def show_solution(self, scenario_id: str) -> None:
+        scenario = self.registry.get_by_id(scenario_id)
+        if not scenario:
+            UI.failure(f"Scenario '{scenario_id}' not found.")
+            return
+
+        solution_file = scenario.dir_path / "solution.sh"
+        if not solution_file.exists():
+            UI.warning("Reference solution not published for this mission.")
+            return
+
+        UI.heading(f"Reference Solution & Post-Mortem: {scenario.title}")
+        UI.info("Studying working reference code is a core learning tool. Inspect the implementation below:")
+        print()
+        code = solution_file.read_text(encoding="utf-8")
+        for line in code.splitlines():
+            if line.startswith("#"):
+                print(UI.colorize(f"  {line}", Colors.DIM))
+            else:
+                print(UI.colorize(f"  {line}", Colors.BRIGHT_WHITE))
+        print()
+        UI.prompt("You can adapt this pattern in your sandbox and re-verify anytime.")
+
     def get_workspace_path(self, scenario_id: str) -> Optional[Path]:
         scenario = self.registry.get_by_id(scenario_id)
         if not scenario:

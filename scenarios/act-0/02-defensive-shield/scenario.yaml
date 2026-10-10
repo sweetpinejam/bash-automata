@@ -1,0 +1,34 @@
+id: "act-0-02-defensive-shield"
+act: 0
+order: 2
+title: "The Defensive Shield"
+difficulty: "Beginner"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "By default, Bash scripts silently continue when commands fail or when undefined variables expand to empty strings. In production, this causes catastrophic silent failures."
+  objective: "Harden 'deploy.sh' by adding the sacred defensive header 'set -euo pipefail', ensuring pipeline failures and unbound variables halt execution with non-zero exit codes."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "deploy.sh"
+      dest: "workspace/deploy.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'deploy.sh' includes 'set -euo pipefail'"
+    - "Pipeline failure detection halts execution"
+    - "Unbound variable detection prevents empty string expansion"
+
+hints:
+  - "The defensive shell mantra is: 'set -euo pipefail'."
+  - "-e exits on error, -u exits on unbound variables, -o pipefail preserves pipeline error codes."
+  - "Place 'set -euo pipefail' right below the shebang '#!/usr/bin/env bash'."

@@ -1,0 +1,36 @@
+id: "act-0-01-stream-contract"
+act: 0
+order: 1
+title: "The Stream Contract"
+difficulty: "Beginner"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "A diagnostic script is running a noisy probe that generates telemetry records to stdout and error alerts to stderr. Currently, everything is printed together onto the screen, corrupting downstream processing."
+  objective: "Edit 'triage.sh' to route stdout (clean metric lines) into 'clean.log' and stderr (panic/error messages) into 'error.log'."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "triage.sh"
+      dest: "workspace/triage.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'triage.sh' executes with exit code 0"
+    - "'clean.log' exists and contains strictly standard data lines"
+    - "'error.log' exists and contains strictly error diagnostics"
+    - "No cross-contamination between stream files"
+
+hints:
+  - "File descriptor 1 is stdout, file descriptor 2 is stderr."
+  - "To redirect stdout to a file: 'command > clean.log' (or '1> clean.log')."
+  - "To redirect stderr to a file: 'command 2> error.log'."
+  - "You can redirect both simultaneously: 'command > clean.log 2> error.log'."

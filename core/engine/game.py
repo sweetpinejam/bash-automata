@@ -21,25 +21,28 @@ class InteractiveGame:
     def run(self) -> None:
         while True:
             self._print_header()
-            print("  " + UI.colorize("▶ MAIN CAMPAIGN OPERATIONS", Colors.BRIGHT_WHITE, Colors.BOLD))
+            print("  " + UI.colorize("▶ MAIN COMMAND OPERATIONS", Colors.BRIGHT_WHITE, Colors.BOLD))
             print()
-            print("  [1] 🎮 Select Incident Mission")
-            print("  [2] 📊 Command Center Status")
-            print("  [3] 🩺 Run Diagnostic Doctor")
+            print("  [1] 🔰 " + UI.colorize("The Academy", Colors.BRIGHT_GREEN, Colors.BOLD) + " (Foundational Drills & Step-by-Step Tutorials)")
+            print("  [2] ⚔️ " + UI.colorize("The Incident Campaign", Colors.BRIGHT_RED, Colors.BOLD) + " (Hardcore Wargame Acts I - VI)")
+            print("  [3] 📊 Command Center Status")
+            print("  [4] 🩺 Run Diagnostic Doctor")
             print("  [q] 🚪 Exit Automata")
             print()
 
-            choice = input("  >> Select operation [1-3, q]: ").strip().lower()
+            choice = input("  >> Select operation [1-4, q]: ").strip().lower()
 
             if choice in ("q", "quit", "exit"):
                 print(UI.colorize("\n  [SESSION TERMINATED] Automata Command Center offline.\n", Colors.DIM))
                 break
             elif choice == "1":
-                self._mission_select_menu()
+                self._mission_select_menu(act_filter=0)
             elif choice == "2":
+                self._mission_select_menu(act_filter=None)
+            elif choice == "3":
                 self.runner.status()
                 input("\n  Press Enter to return to main menu...")
-            elif choice == "3":
+            elif choice == "4":
                 self.runner.doctor()
                 input("\n  Press Enter to return to main menu...")
             else:
@@ -49,16 +52,30 @@ class InteractiveGame:
         print("\033[H\033[J", end="")  # Clear screen cleanly
         print(UI.banner())
 
-    def _mission_select_menu(self) -> None:
+    def _mission_select_menu(self, act_filter: Optional[int] = None) -> None:
         while True:
             self._print_header()
-            scenarios = self.runner.registry.list_all()
+            all_scenarios = self.runner.registry.list_all()
+
+            if act_filter == 0:
+                scenarios = [s for s in all_scenarios if s.act == 0]
+                title = "THE ACADEMY (FOUNDATIONAL DRILLS & TUTORIALS)"
+            elif act_filter is not None:
+                scenarios = [s for s in all_scenarios if s.act == act_filter]
+                title = f"CAMPAIGN MISSIONS (ACT {act_filter})"
+            else:
+                scenarios = [s for s in all_scenarios if s.act > 0]
+                title = "THE INCIDENT WARGAME CAMPAIGN (ACTS I - VI)"
+
             if not scenarios:
-                UI.warning("No incident missions registered.")
+                if act_filter == 0:
+                    UI.warning("Academy tutorial modules are being provisioned.")
+                else:
+                    UI.warning("No campaign scenarios currently available.")
                 input("\nPress Enter to return...")
                 return
 
-            print("  " + UI.colorize("▶ SELECT INCIDENT SCENARIO", Colors.BRIGHT_WHITE, Colors.BOLD))
+            print("  " + UI.colorize(f"▶ {title}", Colors.BRIGHT_WHITE, Colors.BOLD))
             print()
 
             progress_map = {row["scenario_id"]: row for row in self.runner.state.get_all_scenarios()}
@@ -129,10 +146,11 @@ class InteractiveGame:
             print("  [4] 🧪 Run State Verification (Test Fix)")
             print("  [5] 🔄 Instant Rollback (<2s)")
             print("  [6] 💡 Request Tactical Intel (Hints)")
+            print("  [7] 📜 View Reference Solution & Post-Mortem")
             print("  [b] ⬅️ Back to Mission Select")
             print()
 
-            choice = input("  >> Select action [1-6, b]: ").strip().lower()
+            choice = input("  >> Select action [1-7, b]: ").strip().lower()
 
             if choice in ("b", "back"):
                 break
@@ -152,6 +170,9 @@ class InteractiveGame:
                 input("\n  Press Enter to return to mission room...")
             elif choice == "6":
                 self.runner.hint_scenario(scenario.id)
+                input("\n  Press Enter to return to mission room...")
+            elif choice == "7":
+                self.runner.show_solution(scenario.id)
                 input("\n  Press Enter to return to mission room...")
             else:
                 UI.warning("Invalid choice.")

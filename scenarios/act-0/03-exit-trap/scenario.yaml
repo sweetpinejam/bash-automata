@@ -1,0 +1,34 @@
+id: "act-0-03-exit-trap"
+act: 0
+order: 3
+title: "The Exit Trap"
+difficulty: "Beginner"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "A background job acquires a temporary lock file to prevent overlapping runs. If the script is terminated via SIGINT (Ctrl+C) or an unhandled error, the lock file leaks on disk, causing a deadlock on subsequent runs."
+  objective: "Register a POSIX signal trap in 'job.sh' using 'trap ... EXIT INT TERM' to guarantee that the lock file is removed whenever the process exits."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "job.sh"
+      dest: "workspace/job.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'job.sh' registers a trap on EXIT, INT, and TERM"
+    - "Lock file is successfully deleted on normal completion"
+    - "Lock file is successfully deleted when sent a SIGTERM or SIGINT signal"
+
+hints:
+  - "The trap command attaches a cleanup handler to OS signals: 'trap cleanup_function EXIT INT TERM'."
+  - "Alternatively, inline commands can be trapped: 'trap \"rm -f \\\"$LOCK_FILE\\\"\" EXIT INT TERM'."
+  - "The EXIT pseudo-signal runs on ANY script exit (normal, error, or signal)."
