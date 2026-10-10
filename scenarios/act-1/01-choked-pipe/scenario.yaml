@@ -1,0 +1,32 @@
+id: "act-1-01-choked-pipe"
+act: 1
+order: 1
+title: "The Choked Pipe"
+difficulty: "Intermediate"
+timeout_seconds: 60
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+briefing:
+  situation: "Telemetry data is flooding in at 5,000 metrics/sec. The unbuffered direct pipe between Bash and Python causes blocking stalls, latency spikes, and buffer overruns."
+  objective: "Refactor the Bash ingest pipeline and Python consumer to use an asynchronous named pipe (mkfifo) and chunked binary batching (sys.stdin.buffer) with zero record loss and RSS < 64MB."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/ingest_broken.sh"
+      dest: "workspace/ingest.sh"
+    - src: "fixtures/process_broken.py"
+      dest: "workspace/process.py"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "Named pipe (FIFO) correctly created and unlinked on exit"
+    - "Zero records lost across high-throughput telemetry stream"
+    - "Peak resident memory (RSS) stays strictly under 64MB"
+    - "Graceful shutdown with zero orphan processes or leaking descriptors"

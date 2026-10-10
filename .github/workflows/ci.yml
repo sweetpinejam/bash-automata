@@ -1,0 +1,36 @@
+name: CI Engine & Scenario Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ShellCheck & Lints
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          pip install ruff mypy
+
+      - name: Lint Shell Scripts
+        run: |
+          find . -name "*.sh" -not -path "*/.automata/*" -print0 | xargs -0 -r shellcheck -x
+
+      - name: Lint Python Engine & Verifiers
+        run: |
+          ruff check .
+          mypy core/
+
+      - name: Run Test Suite
+        run: |
+          PYTHONPATH=. python3 -m unittest discover -s tests

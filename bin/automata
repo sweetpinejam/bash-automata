@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Bash Automata CLI Launcher
+# Defensive wrapper enforcing strict POSIX behavior and resolving symlinks.
+# ==============================================================================
+set -euo pipefail
+
+# Resolve symlink to absolute physical script location
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+REPO_ROOT="$(cd -P "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+
+# Ensure repository root is on PYTHONPATH
+export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
+
+# Dispatch to Python 3.12 Engine
+exec python3 -m core.engine.cli "$@"
