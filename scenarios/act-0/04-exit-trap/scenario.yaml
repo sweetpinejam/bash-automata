@@ -1,6 +1,6 @@
-id: "act-0-03-exit-trap"
+id: "act-0-04-exit-trap"
 act: 0
-order: 3
+order: 4
 title: "The Exit Trap"
 difficulty: "Beginner"
 timeout_seconds: 30

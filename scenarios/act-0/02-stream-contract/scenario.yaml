@@ -1,6 +1,6 @@
-id: "act-0-01-stream-contract"
+id: "act-0-02-stream-contract"
 act: 0
-order: 1
+order: 2
 title: "The Stream Contract"
 difficulty: "Beginner"
 timeout_seconds: 30

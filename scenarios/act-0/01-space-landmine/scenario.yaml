@@ -1,0 +1,35 @@
+id: "act-0-01-space-landmine"
+act: 0
+order: 1
+title: "The Space Landmine (Cleanup Bot)"
+difficulty: "Beginner"
+timeout_seconds: 15
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 20
+
+briefing:
+  situation: "An automated CI/CD cleanup bot sweeps build artifacts from 'deploy artifacts' into 'archived runs'. Because the path variables are unquoted, Bash splits on the space delimiter, crashing the automated sweep."
+  objective: "Harden 'cleaner.sh' by properly double-quoting variables to prevent Word Splitting, allowing the automated archival sweep to complete with zero errors."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "cleaner.sh"
+      dest: "workspace/cleaner.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'cleaner.sh' executes with exit code 0"
+    - "'archived runs' directory is created"
+    - "All artifacts (including files with spaces) are successfully moved into 'archived runs'"
+    - "Source directory 'deploy artifacts' is cleared"
+
+hints:
+  - "In Bash, unquoted variables expand and then get split by whitespace into separate arguments."
+  - "Always enclose variable expansions in double quotes: \"$SRC_DIR\" and \"$DEST_DIR\"."
+  - "When using wildcards with quoted directories: \"$SRC_DIR\"/* (the wildcard * stays outside the quotes)."

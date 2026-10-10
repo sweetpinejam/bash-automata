@@ -74,6 +74,38 @@ class AutomataRunner:
             UI.failure(f"Scenario '{scenario_id}' not found.")
             return
 
+        lesson_file = scenario.dir_path / "lesson.md"
+        if lesson_file.exists():
+            UI.heading(f"TACTICAL FIELD MANUAL: {scenario.title.upper()} ({scenario.id})")
+            print(f"  Act:        Act {scenario.act} | Difficulty: {scenario.difficulty} | Timeout: {scenario.timeout_seconds}s")
+            print(f"  Resource Clamps: RAM: {scenario.limits.memory_limit} | CPU: {scenario.limits.cpu_quota} | PIDs: {scenario.limits.pids_limit}\n")
+
+            content = lesson_file.read_text(encoding="utf-8")
+            in_code_block = False
+            for line in content.splitlines():
+                if line.startswith("```"):
+                    in_code_block = not in_code_block
+                    print(UI.colorize(f"   {line}", Colors.DIM))
+                    continue
+
+                if in_code_block:
+                    print(UI.colorize(f"   {line}", Colors.BRIGHT_GREEN))
+                elif line.startswith("# "):
+                    print(UI.colorize(f"\n▶ {line[2:]}", Colors.BRIGHT_CYAN, Colors.BOLD))
+                elif line.startswith("## "):
+                    print(UI.colorize(f"\n◆ {line[3:]}", Colors.BRIGHT_WHITE, Colors.BOLD))
+                elif line.startswith("### "):
+                    print(UI.colorize(f"\n  • {line[4:]}", Colors.BRIGHT_YELLOW, Colors.BOLD))
+                elif line.startswith("> "):
+                    print(UI.colorize(f"  ┃ {line[2:]}", Colors.YELLOW))
+                elif line.startswith("* ") or line.startswith("- "):
+                    print(f"   {UI.colorize('•', Colors.BRIGHT_CYAN)} {line[2:]}")
+                else:
+                    print(f"  {line}")
+            print()
+            UI.prompt(f"To begin hands-on execution, select [2] Start Sandbox or [3] Drop into Shell.")
+            return
+
         UI.heading(f"Mission Briefing: {scenario.title} ({scenario.id})")
         print(f" Act:        Act {scenario.act}")
         print(f" Difficulty: {scenario.difficulty}")
