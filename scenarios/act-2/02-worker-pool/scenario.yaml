@@ -1,0 +1,39 @@
+id: act-2-02-worker-pool
+act: 2
+order: 2
+title: "The Runaway Worker Pool"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-8120: Batch processing pipeline throughput has dropped 65%. Profiling shows worker slots sit idle because the queue supervisor waits for all workers to finish in lockstep before launching the next batch."
+  task: "Refactor 'pool_manager.sh' to use dynamic slot replenishment with 'wait -n' so that new jobs are scheduled immediately whenever ANY background worker completes."
+  constraints:
+    - "Maintain a maximum concurrency clamp of 3 active workers."
+    - "Do NOT use lockstep 'wait' inside the loop."
+    - "Ensure all 9 tasks are executed and reaped cleanly."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/pool_broken.sh"
+      dest: "workspace/pool_manager.sh"
+    - src: "fixtures/worker.py"
+      dest: "workspace/worker.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "All 9 queue tasks are processed cleanly"
+    - "'wait -n' dynamic slot replenishment is utilized"
+    - "Zero leaked background workers upon supervisor exit"
+
+hints:
+  - "In Bash 4.3+, 'wait -n' pauses until ANY single child process finishes."
+  - "When the active worker count reaches MAX_WORKERS, call 'wait -n' and decrement the counter: '(( active -= 1 ))'."
+  - "After reading all queue items, call a final 'wait' to drain the remaining active workers."

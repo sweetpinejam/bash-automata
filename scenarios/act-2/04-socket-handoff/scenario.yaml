@@ -1,0 +1,41 @@
+id: act-2-04-socket-handoff
+act: 2
+order: 4
+title: "The Unix Socket Handoff"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-4091: Automated service restarts drop active client traffic and crash during deployment with 'Address already in use: daemon.sock'. Clients attempting to connect immediately after restart receive 'Connection refused'."
+  task: "Harden 'service_ctl.sh' to implement clean Unix domain socket lifecycle management: graceful termination, stale socket cleanup, and active readiness probing before returning."
+  constraints:
+    - "Clean up stale socket files before starting daemon."
+    - "Poll socket readiness (file existence and connectivity) before reporting restart completion."
+    - "Must handle abrupt daemon crashes where residual socket files linger on disk."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/service_broken.sh"
+      dest: "workspace/service_ctl.sh"
+    - src: "fixtures/daemon.py"
+      dest: "workspace/daemon.py"
+    - src: "fixtures/client.py"
+      dest: "workspace/client.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Service restarts cleanly with zero client connection drops"
+    - "Client immediately connects and receives 'PONG_OK' post-restart"
+    - "Recovers cleanly from stale socket files left by crashes"
+
+hints:
+  - "Before launching 'python3 daemon.py', always unlink any existing socket file with 'rm -f \"$SOCKET_FILE\"'."
+  - "When stopping an existing process, send SIGTERM, then loop on 'kill -0 \"$pid\"' until the process exits."
+  - "After starting the background daemon, loop using '[[ -S \"$SOCKET_FILE\" ]] && python3 client.py' to verify readiness before exiting."

@@ -1,0 +1,40 @@
+id: act-2-03-flapping-probe
+act: 2
+order: 3
+title: "The Flaking Healthcheck Latch"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-9031: Production rollouts are failing 85% of the time. Investigation reveals the canary probe aborts the entire deployment if a single transient HTTP 503 error occurs during a microsecond JVM garbage collection pause."
+  task: "Refactor 'canary_checker.sh' to implement a consecutive failure threshold latch. The canary must tolerate isolated transient blips, but abort with exit code 1 if 3 CONSECUTIVE health checks fail."
+  constraints:
+    - "Must execute 10 probe cycles."
+    - "Must tolerate isolated transient errors without aborting."
+    - "Must abort immediately if consecutive failure count reaches 3."
+    - "Any successful healthcheck must reset the failure streak to 0."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/canary_broken.sh"
+      dest: "workspace/canary_checker.sh"
+    - src: "fixtures/health_endpoint.py"
+      dest: "workspace/health_endpoint.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Canary probe successfully survives intermittent transient network blips"
+    - "Canary probe promptly aborts and exits code 1 during sustained service outages"
+    - "Consecutive failure counter accurately resets to 0 on any successful check"
+
+hints:
+  - "Instead of 'if ! python3 health_endpoint.py', use an 'if ... then ... else' structure."
+  - "Inside the success branch, reset your counter: 'consecutive_fails=0'."
+  - "Inside the failure branch, increment the streak: '(( consecutive_fails += 1 ))', and abort if '(( consecutive_fails >= 3 ))'."

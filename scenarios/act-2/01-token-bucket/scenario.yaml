@@ -1,0 +1,39 @@
+id: act-2-01-token-bucket
+act: 2
+order: 1
+title: "The Token Bucket Semaphore"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-4290: An automated ingest bot fired 16 simultaneous API requests against the upstream gateway. The upstream rate-limiter banned the host IP with HTTP 429 Too Many Requests."
+  task: "Implement a pure Bash counting semaphore to restrict maximum background concurrency to exactly 4 worker subshells at any point in time."
+  constraints:
+    - "Do NOT use xargs -P or GNU parallel."
+    - "Do NOT serialize the jobs into single-threaded execution (must process concurrently up to limit 4)."
+    - "Zero external dependencies: pure Bash named pipe and file descriptor semaphore."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/dispatcher_broken.sh"
+      dest: "workspace/dispatcher.sh"
+    - src: "fixtures/mock_api.py"
+      dest: "workspace/mock_api.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "All 16 queue jobs are processed successfully"
+    - "Peak concurrent worker subshells never exceeds 4"
+    - "Zero HTTP 429 rate limit breaches recorded in API telemetry ledger"
+
+hints:
+  - "Create a named pipe using 'mkfifo' and bind it to a custom file descriptor using 'exec 3<>\"$FIFO\"'."
+  - "Pre-seed exactly 4 tokens into the descriptor by writing 4 lines ('echo >&3')."
+  - "Before launching each worker in background, consume a token with 'read -u 3'. When the background worker exits, write a token back: '( job; echo >&3 ) &'."

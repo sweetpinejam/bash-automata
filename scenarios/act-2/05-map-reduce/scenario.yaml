@@ -1,0 +1,41 @@
+id: act-2-05-map-reduce
+act: 2
+order: 5
+title: "The Parallel Map-Reduce Stream"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-5510: Scheduled analytics aggregations are dropping between 50% and 75% of log metrics. Triage reveals the orchestrator invokes the reducer while background partition mappers are still actively writing."
+  task: "Harden 'orchestrator.sh' to collect background worker PIDs into an array and establish an explicit barrier wait across all mappers before running the reducer."
+  constraints:
+    - "Run all 4 partition mappers concurrently in background subshells."
+    - "Do NOT serialize the mappers into synchronous sequential execution."
+    - "Establish a complete barrier wait across all 4 worker PIDs before calling reducer.py."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/orchestrator_broken.sh"
+      dest: "workspace/orchestrator.sh"
+    - src: "fixtures/mapper.sh"
+      dest: "workspace/mapper.sh"
+    - src: "fixtures/reducer.py"
+      dest: "workspace/reducer.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "All 4 partition files are mapped and fully processed"
+    - "Reducer aggregates exactly 400 total events (360 success, 40 errors)"
+    - "Mappers execute concurrently rather than sequentially"
+
+hints:
+  - "Instead of 'last_pid=$!', declare an array: 'map_pids=()'."
+  - "After spawning each mapper in background ('&'), append its PID: 'map_pids+=(\"$!\")'."
+  - "Before invoking the reducer, wait for all captured PIDs: 'wait \"${map_pids[@]}\"'."
