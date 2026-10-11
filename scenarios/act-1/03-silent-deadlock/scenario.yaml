@@ -11,8 +11,8 @@ limits:
   pids_limit: 30
 
 briefing:
-  situation: "A microservice worker ('agent.sh') communicates with a Python supervisory controller ('controller.py') over two named pipes ('req.fifo' and 'resp.fifo'). Both processes attempt to open their receiving pipe for reading before writing, causing a mutual kernel deadlock on the open() system call."
-  objective: "Refactor 'agent.sh' to break the deadlock: decouple the FIFO handshake by opening the response listener asynchronously in the background, or open the pipes in read-write mode ('exec 3<> req.fifo') so the handshake completes without hanging."
+  situation: "An IPC worker ('agent.sh') communicates with a Python supervisory controller ('controller.py') over two named pipes ('req.fifo' and 'resp.fifo'). Both processes attempt to open their receiving pipe for reading before writing, triggering a circular wait deadlock on the open() system call."
+  objective: "Refactor 'agent.sh' to break the circular dependency: decouple the handshake by dispatching the request asynchronously (or via non-blocking descriptor) so the controller unblocks and the full bidirectional handshake completes in <2.0 seconds."
 
 files:
   workspace_dir: "workspace"
@@ -26,12 +26,11 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'agent.sh' completes full bidirectional ping-pong handshake in <2 seconds"
-    - "Zero processes stuck in uninterruptible sleep state"
+    - "'agent.sh' completes full bidirectional ping-pong handshake in <2.0 seconds"
+    - "Zero processes stuck in uninterruptible sleep state ('fifo_open')"
     - "'handshake.log' records 'HANDSHAKE_ACK_RECEIVED'"
 
 hints:
-  - "In POSIX, opening a FIFO for reading 'open(O_RDONLY)' blocks until a writer connects."
-  - "Opening a FIFO for writing 'open(O_WRONLY)' also blocks until a reader connects."
-  - "If both processes wait to read first, they deadlock permanently."
-  - "In Bash on Linux, opening in read-write mode 'exec 3<> pipe' avoids blocking on open."
+  - "When a script hangs silently with 0% CPU, inspect its kernel wait channel using 'ps -o pid,stat,wchan,cmd -p $PID'. If 'wchan' shows 'fifo_open', the process is suspended inside the kernel waiting for a peer to open the other end of the pipe."
+  - "Under POSIX, opening a FIFO for reading 'open(O_RDONLY)' blocks until a writer connects, and opening for writing 'open(O_WRONLY)' blocks until a reader connects. If two processes each wait to read before writing, they trigger Coffman Condition #4 (Circular Wait Deadlock)."
+  - "To break the circular wait, decouple the outbound message: dispatch the request in a background subshell ('echo PING > req.fifo &') so the controller's read call unblocks while the agent reads 'resp.fifo'."

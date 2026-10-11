@@ -16,6 +16,15 @@ def fail(msg: str):
     sys.exit(1)
 
 
+def cleanup(workspace: Path):
+    # Unlink any stale FIFOs and log files
+    for fifo in ["req.fifo", "resp.fifo"]:
+        p = workspace / fifo
+        if p.exists():
+            p.unlink(missing_ok=True)
+    (workspace / "handshake.log").unlink(missing_ok=True)
+
+
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
     script = workspace / "agent.sh"
@@ -23,6 +32,8 @@ def main():
 
     if not script.exists():
         fail("Missing required script: agent.sh")
+
+    cleanup(workspace)
 
     # 1. Execution with strict anti-deadlock timeout
     log("Executing bidirectional FIFO handshake under 3.0s anti-hang watchdog...")
@@ -36,6 +47,9 @@ def main():
             timeout=3.0,
         )
     except subprocess.TimeoutExpired:
+        # Safely terminate any stalled controller daemon
+        subprocess.run(["pkill", "-9", "-f", "^python3.*controller.py"], capture_output=True)
+        cleanup(workspace)
         fail("DEADLOCK DETECTED: agent.sh hung waiting on FIFO open()! Mutual blocking read/write freeze.")
 
     elapsed = time.time() - t0

@@ -1,18 +1,43 @@
-# Code Blueprint: Bidirectional Named Pipe Handshake Deadlock Prevention
+# Tactical Blueprint: Resolving Bidirectional FIFO Deadlocks
 
-When two processes communicate across two FIFOs (`req.fifo` and `resp.fifo`), synchronization ordering is critical:
+To break circular `open(2)` wait conditions across bidirectional named pipes:
+
+---
+
+## 1. Pattern A: Asynchronous Background Writer (POSIX Standard)
+Decouple the outbound request by launching the writer in a background subshell (`&`), and guard the exit trap with `$BASHPID`:
 
 ```bash
-# Blueprint Pattern:
-# If peer controller waits to read req.fifo before writing to resp.fifo:
-# Write request asynchronously in background so reading doesn't block:
+MAIN_PID=$$
+# Guard against subshells accidentally unlinking FIFOs when they exit:
+trap 'if [[ "$BASHPID" == "$MAIN_PID" ]]; then rm -f req.fifo resp.fifo; fi' EXIT INT TERM
+
+# 1. Fire request in the background (unblocks controller's read):
 echo "PING" > req.fifo &
 
-# Now reading resp.fifo proceeds without freezing:
+# 2. Block on response in the foreground (unblocks when controller responds):
 cat resp.fifo > handshake.log
 
-# Wait for background processes to settle:
+# 3. Cleanly wait for background child processes:
 wait "$controller_pid"
 ```
 
-> **Key Rule**: Opening a FIFO for writing (`> req.fifo`) blocks until the reader opens it, and opening for reading (`< resp.fifo`) blocks until the writer opens it. Asynchronous execution (`&`) breaks circular dependency deadlocks.
+---
+
+## 2. Pattern B: Bidirectional File Descriptor Allocation (`exec 3<>`)
+On Linux, opening a FIFO in read-write mode opens both descriptors concurrently, preventing blocking during open:
+
+```bash
+# Open in read-write mode:
+exec 3<> req.fifo
+echo "PING" >&3
+exec 3>&-
+
+# Read incoming response:
+cat resp.fifo > handshake.log
+```
+
+---
+
+## 3. Key Rule: Subshell Trap Defense
+In Bash, background subshells inherit `EXIT` traps. If you register `trap 'rm -f req.fifo' EXIT`, the subshell `( echo PING > req.fifo ) &` will trigger the trap when it terminates, deleting the pipe while the parent is still waiting! Always check `[[ "$BASHPID" == "$MAIN_PID" ]]` inside the trap.
