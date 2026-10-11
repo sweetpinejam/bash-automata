@@ -33,6 +33,6 @@ verification:
     - "'DRAIN_COMPLETED' is recorded in drain.log"
 
 hints:
-  - "Initialize 'draining=false' and trap SIGTERM: 'trap \"draining=true\" TERM INT'."
-  - "Before picking up a new transaction and after committing one, check: 'if $draining; then break; fi'."
-  - "After breaking the loop, write 'DRAIN_COMPLETED' to drain.log and clean up worker.pid."
+  - "Diagnostic Phase: Inspect transaction logs during rollout evictions. When SIGTERM arrives, default OS signal disposition terminates the process immediately, severing in-flight transactions mid-operation."
+  - "Architectural Pattern: Implement a two-phase graceful drain using a signal latch. Instead of executing complex cleanup inside the asynchronous trap handler, latch a state flag (e.g., 'draining=true') and check this flag at well-defined safe transaction boundaries."
+  - "Lifecycle Blueprint: Register traps for TERM and INT signals to activate the drain flag. In the consumption loop, refuse new queue work if draining is active, allow the currently executing transaction to finish committing, write 'DRAIN_COMPLETED' to the drain log upon loop exit, and terminate with exit status 0."
