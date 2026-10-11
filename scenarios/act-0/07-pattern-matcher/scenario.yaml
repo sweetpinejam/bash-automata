@@ -1,7 +1,7 @@
 id: "act-0-07-pattern-matcher"
 act: 0
 order: 7
-title: "Pattern & Regex Matching"
+title: "Pattern Matcher (Threat Classifier)"
 difficulty: "Beginner"
 timeout_seconds: 15
 
@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated security scanner ('classifier.sh') monitors firewall event feeds. It needs to filter critical 'ALERT' events and parse the attacker IP, port, and reason into 'threats.csv'. Spawning external regex engines like 'grep', 'sed', or 'awk' creates unnecessary overhead."
-  objective: "Refactor 'classifier.sh' to use native Bash regex matching '=~' inside '[[ ... ]]' and extract capture groups using '${BASH_REMATCH[@]}'. Filter non-alerts and format alerts into 'threats.csv' without external binaries."
+  situation: "An automated security event stream processes high-volume firewall logs. Piping logs into external utilities ('grep', 'awk', 'cut') causes packet drops and exhausts CPU. We need pure in-memory shell pattern matching."
+  objective: "Build a high-throughput threat classifier in 'classifier.sh' using pure Bash regex ('[[ $line =~ $pattern ]]') and 'BASH_REMATCH'. Extract IP, port, and reason, classify severity and internal/external scope, and output 'threats.csv'."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'classifier.sh' executes with exit code 0"
-    - "No external regex tools ('grep', 'sed', 'awk', 'cut') spawned"
-    - "Uses '=~' regex operator and '${BASH_REMATCH[...]}'"
-    - "Generates 'threats.csv' containing only ALERT entries in CSV format 'IP,PORT,REASON'"
+    - "Zero external text manipulation binaries (grep, awk, cut, sed) spawned"
+    - "Extracts capture groups using native 'BASH_REMATCH'"
+    - "Accurately classifies threat severity (CRITICAL, HIGH, MEDIUM)"
+    - "Accurately identifies network scope (INTERNAL vs EXTERNAL) using glob matching"
+    - "Generates valid 'threats.csv' with all matched threats"
 
 hints:
-  - "Regex matching syntax in Bash: '[[ \"$string\" =~ regex_pattern ]]'"
-  - "Captured parentheses groups are stored in the array '${BASH_REMATCH[1]}', '${BASH_REMATCH[2]}', etc."
-  - "Match IP and Port with: '[[ \"$line\" =~ ip=([0-9.]+)[[:space:]]+port=([0-9]+)[[:space:]]+reason=([A-Z_]+) ]]'"
+  - "Store regex pattern in variable: pattern='^ALERT[[:space:]]+ts=([0-9]+)...'."
+  - "Match unquoted in brackets: '[[ \"$line\" =~ $pattern ]]'; extract '${BASH_REMATCH[1]}' etc."
+  - "Check subnet with globs: '[[ \"$ip\" == 10.* || \"$ip\" == 192.168.* ]] && scope=INTERNAL'."

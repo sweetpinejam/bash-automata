@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated metric rollup bot ('aggregator.sh') analyzes traffic samples from 'samples.log'. The script relies on archaic 'expr' subshell calls to do arithmetic, causing process exhaustion and failing to compute the average latency and error percentage."
-  objective: "Refactor 'aggregator.sh' to use native Bash arithmetic: increment counters with '(( count++ ))', accumulate sums with '(( total += val ))', and calculate integer metrics using '$(( ... ))' without spawning external 'expr' or 'bc' commands."
+  situation: "An automated real-time traffic monitoring bot ('aggregator.sh') crunches request logs. The script relies on archaic 'expr' subprocess calls, exhausting process limits and failing to calculate average latency, error percentages, and SLA compliance."
+  objective: "Build a high-throughput metrics engine in 'aggregator.sh' using pure Bash integer arithmetic ('(( ... ))' and '$(( ... ))'). Track latency distributions, status code buckets, and SLA compliance percentages, then generate 'metrics_rollup.tsv'."
 
 files:
   workspace_dir: "workspace"
@@ -24,11 +24,12 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'aggregator.sh' executes with exit code 0"
-    - "No external 'expr' or 'bc' subprocesses spawned"
-    - "Generates 'summary.txt' with correct TOTAL_COUNT, AVG_LATENCY, and ERR_PCT"
+    - "Zero external arithmetic utilities (expr, bc, awk, dc) used"
+    - "Calculates accurate TOTAL_REQS, AVG_LATENCY, MIN_LATENCY, and MAX_LATENCY"
+    - "Accurately buckets status codes and computes SLA compliance % and error %"
+    - "Evaluates SLA breach criteria and generates 'metrics_rollup.tsv'"
 
 hints:
-  - "To perform arithmetic without capturing output: '(( count++ ))' or '(( total += val ))'."
-  - "To capture the result of arithmetic: 'AVG=$(( total / count ))'."
-  - "Inside '(( ... ))' and '$(( ... ))', variables do not need dollar signs: '$(( total / count ))' works directly."
+  - "Increment safely under set -e: '(( ++TOTAL_REQS ))' or '(( TOTAL_REQS += 1 ))'."
+  - "Accumulate sums: '(( TOTAL_LATENCY += latency ))'."
+  - "Integer division: 'AVG_LATENCY=$(( TOTAL_LATENCY / TOTAL_REQS ))'."

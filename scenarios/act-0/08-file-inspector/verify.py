@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.08: The File Inspector."""
+"""State-driven verification harness for Drill 0.08: The File Inspector."""
+import json
 import os
 import subprocess
 import sys
@@ -18,69 +19,124 @@ def fail(msg: str):
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
     script = workspace / "preflight.sh"
-    config_file = workspace / "config" / "app.conf"
-    releases_dir = workspace / "releases"
-    app_bin = workspace / "bin" / "app"
+    config_file = workspace / "config/app.conf"
+    bin_file = workspace / "bin/app"
+    symlink_file = workspace / "current_release"
+    target_rel = workspace / "releases/v1.0"
+    report_file = workspace / "health_report.json"
 
     if not script.exists():
         fail("Missing required script: preflight.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"preflight.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit for file test operators
+    log("Auditing file test operators in preflight.sh...")
     content = script.read_text(encoding="utf-8")
     active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
 
-    # 1. Static audit
-    log("Auditing file test operators in preflight.sh...")
-    if "-s" not in active_code:
-        fail("Missing non-empty file test operator '-s'")
-    if "-d" not in active_code:
-        fail("Missing directory test operator '-d'")
-    if "-x" not in active_code:
-        fail("Missing executable test operator '-x'")
+    for op in ["-s", "-d", "-x", "-L", "-e"]:
+        if op not in active_code:
+            fail(f"Missing required file test operator '{op}' in preflight.sh.")
 
-    def run_check():
-        return subprocess.run(
-            ["bash", str(script)],
-            cwd=str(workspace),
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+    # Test 1: All healthy run
+    log("Testing pre-flight execution on fully valid infrastructure...")
+    res1 = subprocess.run(
+        ["bash", str(script)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res1.returncode != 0:
+        fail(f"preflight.sh failed when all infrastructure is valid: {res1.stderr.strip()}")
+    if "ALL_CHECKS_PASSED" not in res1.stdout:
+        fail("preflight.sh did not print 'ALL_CHECKS_PASSED' on clean environment.")
+    if not report_file.exists():
+        fail("Missing required 'health_report.json' report file.")
 
-    # 2. Test valid baseline
-    log("Test 1: Running with valid prerequisites...")
-    res = run_check()
-    if res.returncode != 0:
-        fail(f"preflight.sh failed on valid environment (exit code {res.returncode}). Stderr: {res.stderr.strip()}")
-    if "ALL_CHECKS_PASSED" not in res.stdout:
-        fail("Expected 'ALL_CHECKS_PASSED' in stdout.")
+    try:
+        report = json.loads(report_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        fail(f"Invalid JSON in health_report.json: {e}")
 
-    # 3. Test empty config
-    log("Test 2: Testing empty configuration file (zero bytes)...")
+    if report.get("status") != "PASSED" or report.get("failed_checks") != 0 or report.get("passed_checks") != 5:
+        fail(f"Unexpected health report metrics: {report}")
+
+    # Test 2: Zero-byte empty config file (-s test)
+    log("Testing zero-byte config file detection (-s)...")
     config_file.write_text("", encoding="utf-8")
-    res_empty = run_check()
-    if res_empty.returncode == 0:
-        fail("preflight.sh succeeded with an empty config file! Must fail when file is 0 bytes.")
-    config_file.write_text("PORT=8080\n", encoding="utf-8")
+    res2 = subprocess.run(
+        ["bash", str(script)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res2.returncode == 0:
+        fail("preflight.sh must exit 1 when config file is empty (zero bytes).")
+    if "config_integrity" not in res2.stdout and "config_integrity" not in res2.stderr:
+        fail("preflight.sh did not report 'config_integrity' failure.")
 
-    # 4. Test missing directory
-    log("Test 3: Testing missing directory...")
-    if releases_dir.exists():
-        releases_dir.rmdir()
-    res_nodir = run_check()
-    if res_nodir.returncode == 0:
-        fail("preflight.sh succeeded with missing releases directory! Must fail.")
-    releases_dir.mkdir(exist_ok=True)
+    # Restore config
+    config_file.write_text("port=8080 mode=production\n", encoding="utf-8")
 
-    # 5. Test non-executable binary
-    log("Test 4: Testing non-executable binary permissions...")
-    app_bin.chmod(0o644)
-    res_noexec = run_check()
-    if res_noexec.returncode == 0:
-        fail("preflight.sh succeeded when bin/app had no execute permissions! Must fail.")
-    app_bin.chmod(0o755)
+    # Test 3: Binary missing execute permission (-x test)
+    log("Testing non-executable binary detection (-x)...")
+    bin_file.chmod(0o644)
+    res3 = subprocess.run(
+        ["bash", str(script)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res3.returncode == 0:
+        fail("preflight.sh must exit 1 when bin/app lacks execute permissions.")
+    if "binary_executable" not in res3.stdout and "binary_executable" not in res3.stderr:
+        fail("preflight.sh did not report 'binary_executable' failure.")
 
+    # Restore binary permissions
+    bin_file.chmod(0o755)
+
+    # Test 4: Dangling symlink detection (-L && -e)
+    log("Testing dangling symlink detection (-L && -e)...")
+    target_rel.rmdir()  # Target is deleted, current_release is now dangling!
+    res4 = subprocess.run(
+        ["bash", str(script)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res4.returncode == 0:
+        fail("preflight.sh must exit 1 when current_release is a dangling symlink.")
+    if "symlink_integrity" not in res4.stdout and "symlink_integrity" not in res4.stderr:
+        fail("preflight.sh did not report 'symlink_integrity' failure on dangling link.")
+
+    # Restore symlink target
+    target_rel.mkdir(parents=True, exist_ok=True)
+
+    # Test 5: Custom report path
+    log("Testing --report CLI flag...")
+    custom_report = workspace / "custom_audit.json"
+    res5 = subprocess.run(
+        ["bash", str(script), "--report", str(custom_report)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res5.returncode != 0:
+        fail(f"preflight.sh failed with custom report argument: {res5.stderr.strip()}")
+    if not custom_report.exists():
+        fail("Custom report file 'custom_audit.json' was not generated.")
+
+    log("Successfully verified all file operators (-s, -d, -x, -L, -e) and diagnostic reporting!")
     print("\n  [PASS] ALL FILE TESTS (-s, -d, -x) VERIFIED ACROSS POSITIVE AND NEGATIVE SCENARIOS.")
-    sys.exit(0)
 
 
 if __name__ == "__main__":

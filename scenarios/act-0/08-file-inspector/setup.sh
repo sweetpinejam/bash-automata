@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-rm -rf config releases bin
-mkdir -p config releases bin
+WORKSPACE="${AUTOMATA_WORKSPACE:-$(pwd)}"
 
-# Provision valid environment initially
-echo "PORT=8080" > config/app.conf
-echo '#!/bin/sh\necho ok' > bin/app
-chmod +x bin/app
+rm -rf "$WORKSPACE/config" "$WORKSPACE/releases" "$WORKSPACE/bin" "$WORKSPACE/logs" "$WORKSPACE/current_release" "$WORKSPACE/health_report.json"
 
-chmod +x preflight.sh
+if [[ -f "$WORKSPACE/preflight.sh" ]]; then
+    chmod +x "$WORKSPACE/preflight.sh"
+fi
+
+# Seed valid deployment infrastructure
+mkdir -p "$WORKSPACE/config"
+echo "port=8080 mode=production" > "$WORKSPACE/config/app.conf"
+
+mkdir -p "$WORKSPACE/releases/v1.0"
+mkdir -p "$WORKSPACE/bin"
+echo '#!/bin/sh' > "$WORKSPACE/bin/app"
+chmod +x "$WORKSPACE/bin/app"
+
+ln -s "releases/v1.0" "$WORKSPACE/current_release"
+
+mkdir -p "$WORKSPACE/logs"
+
+echo "[SETUP COMPLETE] Initialized pre-flight infrastructure"

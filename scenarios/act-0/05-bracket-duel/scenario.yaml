@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated pre-flight deployment check ('validator.sh') repeatedly crashes with '[: =: unary operator expected' whenever TARGET_ENV is empty or contains spaces. It is using POSIX '[' instead of modern Bash '[[ ]]'. In addition, combined expressions use fragile '-a' flags."
-  objective: "Modernize 'validator.sh' by replacing all single brackets '[' with compound test brackets '[[ ]]' and replacing legacy '-a' / '-o' flags with native '&&' / '||'. Ensure the script handles empty and whitespace-filled variables gracefully."
+  situation: "An automated deployment gate ('validator.sh') crashes with syntax errors whenever arguments are empty or contain spaces because of legacy single brackets '[' and '-a'/'-o' operators."
+  objective: "Build a robust multi-environment pre-flight policy engine in 'validator.sh' using modern compound brackets '[[ ]]'. Enforce replica limits, branch safety rules, and environment constraints cleanly."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,12 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'validator.sh' executes with exit code 0 when testing empty, space-delimited, and valid environments"
-    - "All single brackets '[' replaced with compound '[[ ]]'"
-    - "No legacy '-a' or '-o' operators used inside test expressions"
-    - "Prints correct approval/rejection verdicts based on TARGET_ENV and DEPLOY_TIER"
+    - "Zero legacy single brackets '[' or '-a'/'-o' flags used"
+    - "Gracefully handles empty strings, whitespace, and non-numeric inputs"
+    - "Rejects invalid replicas (<1 or >50) and unapproved branches"
+    - "Outputs correct approval and rejection verdicts with matching exit codes"
 
 hints:
-  - "The single bracket '[' is actually an alias for the '/bin/[' command, subject to word-splitting."
-  - "The double bracket '[[ ]]' is a Bash keyword that disables word splitting and pathname expansion."
-  - "Inside '[[ ]]', use native logical operators: '[[ expr1 && expr2 ]]' instead of '[ expr1 -a expr2 ]'."
+  - "Use '[[ -z \"${TARGET_ENV// /}\" ]]' to check for empty or whitespace-only strings."
+  - "Regex check in brackets: '[[ \"$REPLICAS\" =~ ^[0-9]+$ ]] && (( REPLICAS >= 1 && REPLICAS <= 50 ))'."
+  - "Pattern matching on branch: '[[ \"$BRANCH\" != \"main\" && \"$BRANCH\" != release/* ]]'."

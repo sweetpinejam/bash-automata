@@ -1,17 +1,48 @@
-# Code Blueprint: Regex Matching & `BASH_REMATCH` Captures
+# Code Blueprint & Almost-Answer: Pattern Matching in `[[ ]]`
 
-Match strings with regex inside `[[ ... ]]` and access capture groups via the special array `BASH_REMATCH`:
+If you need structural regex guidance for `classifier.sh`:
 
+### 1. Regex Pattern Matching and Extraction
 ```bash
-# Blueprint Pattern:
-pattern='^ALERT[[:space:]]+ip=([0-9.]+)[[:space:]]+port=([0-9]+)[[:space:]]+reason=([A-Z_]+)'
+pattern='^ALERT[[:space:]]+ts=([0-9]+)[[:space:]]+ip=([0-9.]+)[[:space:]]+port=([0-9]+)[[:space:]]+reason=([A-Z_]+)'
 
 if [[ "$line" =~ $pattern ]]; then
-  ip="${BASH_REMATCH[1]}"
-  port="${BASH_REMATCH[2]}"
-  reason="${BASH_REMATCH[3]}"
-  echo "$ip,$port,$reason" >> "$output"
-fi
+    ts="${BASH_REMATCH[1]}"
+    ip="${BASH_REMATCH[2]}"
+    port="${BASH_REMATCH[3]}"
+    reason="${BASH_REMATCH[4]}"
+    ...
 ```
 
-> **Key Rule**: Do NOT quote the regex variable when referencing it inside `[[ $line =~ $pattern ]]`. Quotes make Bash treat it as a literal string rather than a regular expression.
+### 2. Severity Routing with `case`
+```bash
+case "$reason" in
+    SQL_INJECTION|REMOTE_CODE_EXEC)
+        severity="CRITICAL"
+        (( ++CRITICAL_COUNT ))
+        ;;
+    BRUTE_FORCE_AUTH|PORT_SCAN)
+        severity="HIGH"
+        (( ++HIGH_COUNT ))
+        ;;
+    UNAUTHORIZED_ACCESS|RATE_LIMIT_EXCEEDED)
+        severity="MEDIUM"
+        (( ++MEDIUM_COUNT ))
+        ;;
+    *)
+        severity="LOW"
+        ;;
+esac
+```
+
+### 3. Scope Classification with Globs
+```bash
+if [[ "$ip" == 10.* || "$ip" == 192.168.* || "$ip" == 172.16.* ]]; then
+    scope="INTERNAL"
+else
+    scope="EXTERNAL"
+    (( ++EXTERNAL_COUNT ))
+fi
+
+echo "$ts,$ip,$port,$severity,$reason,$scope" >> "$OUTPUT_CSV"
+```

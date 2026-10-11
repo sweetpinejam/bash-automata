@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.05: The Bracket Duel."""
+"""State-driven verification harness for Drill 0.05: The Bracket Duel."""
 import os
 import re
 import subprocess
@@ -23,49 +23,61 @@ def main():
     if not script.exists():
         fail("Missing required script: validator.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"validator.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit for [[ ]] and absence of [
+    log("Auditing bracket modernizations in validator.sh...")
     content = script.read_text(encoding="utf-8")
-    lines = [l.strip() for l in content.splitlines() if not l.strip().startswith("#")]
-    active_code = "\n".join(lines)
+    active_lines = [l.strip() for l in content.splitlines() if l.strip() and not l.strip().startswith("#")]
+    active_code = "\n".join(active_lines)
 
-    # 1. Static audit
-    log("Auditing compound bracket syntax in validator.sh...")
-    if "[[" not in active_code or "]]" not in active_code:
-        fail("Missing modern compound test brackets '[[ ... ]]'")
+    # Check for legacy single bracket usage
+    if re.search(r'(^|\s)\[\s+[^\[]', active_code):
+        fail("Detected legacy single bracket '['. Replace all test brackets with modern '[[ ]]' compound keywords.")
 
-    # Check for legacy single brackets in if/elif statements
-    for line in lines:
-        if line.startswith("if [ ") or line.startswith("elif [ ") or " [ " in line:
-            fail(f"Found legacy single bracket test: '{line}'. Replace with '[[ ... ]]'.")
-        if " -a " in line or " -o " in line:
-            fail(f"Found archaic '-a' or '-o' operator: '{line}'. Use '&&' or '||' inside '[[ ... ]]'.")
+    if re.search(r'\s+-[ao]\s+', active_code):
+        fail("Detected legacy '-a' or '-o' logical flag. Use native '&&' and '||' inside '[[ ]]'.")
 
-    # 2. Execution tests
+    if "[[" not in active_code:
+        fail("Missing required compound '[[ ]]' test constructs.")
+
+    # Test cases: (args, expected_code, expected_phrase, description)
     test_cases = [
-        # (args, expected_output, description)
-        ([], "DEPLOY_VERDICT: TARGET_ENV_MISSING", "Empty / unset arguments"),
-        ([""], "DEPLOY_VERDICT: TARGET_ENV_MISSING", "Explicit empty string argument"),
-        (["prod cluster", "critical"], "DEPLOY_VERDICT: UNKNOWN_TARGET", "Argument with spaces (Word-splitting test)"),
-        (["production", "critical"], "DEPLOY_VERDICT: MANUAL_APPROVAL_REQUIRED", "Production critical approval check"),
-        (["staging"], "DEPLOY_VERDICT: AUTO_APPROVED", "Staging auto-approval check"),
-        (["dev"], "DEPLOY_VERDICT: AUTO_APPROVED", "Dev auto-approval check"),
+        (["", "standard", "3", "main"], 2, "REJECTED: MISSING_TARGET_ENV", "Empty TARGET_ENV"),
+        (["   ", "standard", "3", "main"], 2, "REJECTED: MISSING_TARGET_ENV", "Whitespace TARGET_ENV"),
+        (["dev", "standard", "not_a_number", "main"], 2, "REJECTED: INVALID_REPLICA_COUNT", "Non-numeric replicas"),
+        (["dev", "standard", "0", "main"], 2, "REJECTED: INVALID_REPLICA_COUNT", "Zero replicas"),
+        (["dev", "standard", "99", "main"], 2, "REJECTED: INVALID_REPLICA_COUNT", "Excessive replicas (>50)"),
+        (["production", "critical", "2", "main"], 2, "REJECTED: INSUFFICIENT_CRITICAL_REPLICAS", "Prod critical < 3 replicas"),
+        (["production", "critical", "4", "feat/auth"], 2, "REJECTED: UNAPPROVED_BRANCH_FOR_PROD", "Prod critical unapproved branch"),
+        (["production", "critical", "4", "release/v1.0"], 0, "MANUAL_APPROVAL_REQUIRED", "Prod critical valid release"),
+        (["production", "critical", "5", "main"], 0, "MANUAL_APPROVAL_REQUIRED", "Prod critical valid main"),
+        (["production", "standard", "2", "hotfix/cve-123"], 0, "AUTO_APPROVED", "Prod standard valid hotfix"),
+        (["canary", "standard", "8", "main"], 2, "REJECTED: CANARY_REPLICA_EXCEEDED", "Canary > 5 replicas"),
+        (["canary", "standard", "3", "main"], 0, "AUTO_APPROVED", "Canary valid replicas"),
+        (["staging", "standard", "2", "feat/any"], 0, "AUTO_APPROVED", "Staging auto approved"),
+        (["dev", "standard", "1", "feat/any"], 0, "AUTO_APPROVED", "Dev auto approved"),
+        (["sandbox_qa", "standard", "2", "main"], 2, "REJECTED: UNKNOWN_ENVIRONMENT", "Unknown environment"),
     ]
 
-    for args, expected, desc in test_cases:
-        log(f"Testing condition: {desc}...")
+    for args, exp_code, exp_phrase, desc in test_cases:
         res = subprocess.run(
             ["bash", str(script)] + args,
             cwd=str(workspace),
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=3,
         )
-        if res.returncode != 0:
-            fail(f"Script crashed (exit code {res.returncode}) for args {args}. Stderr: {res.stderr.strip()}")
-        if expected not in res.stdout:
-            fail(f"Expected output '{expected}' not found in stdout for args {args}. Got: {res.stdout.strip()}")
+        if res.returncode != exp_code:
+            fail(f"Test '{desc}' failed: Expected exit code {exp_code}, got {res.returncode}. Output: {res.stdout.strip()} Stderr: {res.stderr.strip()}")
+        if exp_phrase not in res.stdout:
+            fail(f"Test '{desc}' failed: Expected '{exp_phrase}' in output. Got: {res.stdout.strip()}")
 
-    print("\n  [PASS] ALL CONDITIONAL TESTS PASSED WITHOUT WORD-SPLITTING OR SYNTAX CRASHES.")
-    sys.exit(0)
+    log(f"Successfully validated all {len(test_cases)} policy cases with modern [[ ]] compound checks!")
+    print("\n  [PASS] BRACKET DUEL POLICY ENGINE VERIFIED SUCCESSFULLY.")
 
 
 if __name__ == "__main__":
