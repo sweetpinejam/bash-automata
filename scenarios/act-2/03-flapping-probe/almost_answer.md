@@ -1,29 +1,47 @@
-# Code Blueprint: Consecutive Failure Threshold Latch
+# Structural Scaffolding: Consecutive Failure Threshold Latch
 
-Avoid deployment flapping caused by single transient errors by tracking consecutive failures in Bash:
+To prevent deployment rollbacks caused by single transient network drops or microsecond GC pauses, wrap the probe in an `if/else` block with a reset-on-success failure streak:
+
+---
+
+## Pattern: Consecutive Failure Latch
 
 ```bash
-# Blueprint Pattern:
 FAIL_THRESHOLD=3
 consecutive_fails=0
 
 for (( i=1; i<=CYCLES; i++ )); do
-  if python3 health_endpoint.py; then
-    # Reset failure streak on any successful probe:
-    consecutive_fails=0
-  else
-    # Increment failure streak:
-    (( consecutive_fails += 1 ))
-    if (( consecutive_fails >= FAIL_THRESHOLD )); then
-      echo "CANARY_ABORTED: Service failed $consecutive_fails consecutive probes" >&2
-      exit 1
+    # 'if cmd; then' is exempt from 'set -e' abort on non-zero exit codes:
+    if run_probe; then
+        # RESET: Streak cleared on any successful probe
+        consecutive_fails=0
+    else
+        # INCREMENT: Record consecutive failure
+        consecutive_fails=$(( consecutive_fails + 1 ))
+
+        # LATCH TRIPPED: Abort only when sustained outage threshold is met
+        if (( consecutive_fails >= FAIL_THRESHOLD )); then
+            echo "CANARY_ABORTED: Threshold reached on cycle $i" >&2
+            exit 1
+        fi
     fi
-  fi
-  sleep 0.01
+    sleep "$INTERVAL"
 done
 
+# If all cycles complete without tripping the latch:
 echo "CANARY_HEALTHY"
 exit 0
 ```
 
-> **Key Rule**: Resetting `consecutive_fails=0` on each success converts a naive binary error check into a resilient sliding window, absorbing transient blips while still catching true sustained outages.
+---
+
+## Verifying Latch Behavior
+
+Test against both simulated modes:
+```bash
+# Test 1: Transient mode (should exit 0 with CANARY_HEALTHY):
+PROBE_MODE=transient bash canary_checker.sh
+
+# Test 2: Outage mode (should exit 1 with CANARY_ABORTED after 3 cycles):
+PROBE_MODE=outage bash canary_checker.sh
+```

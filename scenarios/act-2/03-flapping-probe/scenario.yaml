@@ -35,6 +35,6 @@ verification:
     - "Consecutive failure counter accurately resets to 0 on any successful check"
 
 hints:
-  - "Instead of 'if ! python3 health_endpoint.py', use an 'if ... then ... else' structure."
-  - "Inside the success branch, reset your counter: 'consecutive_fails=0'."
-  - "Inside the failure branch, increment the streak: '(( consecutive_fails += 1 ))', and abort if '(( consecutive_fails >= 3 ))'."
+  - "Diagnostic: Inspect the stderr log during test execution. Notice that in the broken script, isolated transient blips on cycles 3 and 7 trigger immediate aborts before the probe can evaluate overall release stability."
+  - "Mechanism: Health probes require hysteresis damping: isolate temporary network noise from real outages by maintaining a consecutive failure streak counter that resets to 0 on every successful check."
+  - "Blueprint: Branch probe execution with 'if probe; then streak=0; else streak=$(( streak + 1 )); fi'. Abort with exit code 1 only when the streak reaches FAIL_THRESHOLD."
