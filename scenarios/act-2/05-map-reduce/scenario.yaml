@@ -36,6 +36,6 @@ verification:
     - "Mappers execute concurrently rather than sequentially"
 
 hints:
-  - "Instead of 'last_pid=$!', declare an array: 'map_pids=()'."
-  - "After spawning each mapper in background ('&'), append its PID: 'map_pids+=(\"$!\")'."
-  - "Before invoking the reducer, wait for all captured PIDs: 'wait \"${map_pids[@]}\"'."
+  - "Diagnostic: Inspect 'final_metrics.json' after running the broken script. Notice that only the last partition is aggregated because '$!' only records the most recently spawned child."
+  - "Mechanism: The special parameter '$!' is overwritten every time a background job ('&') is dispatched. Waiting on a single scalar PID creates a race condition against earlier, slower workers."
+  - "Blueprint: Accumulate all background worker PIDs into an indexed array during the fan-out loop, then invoke 'wait' across the entire array before launching the reducer."

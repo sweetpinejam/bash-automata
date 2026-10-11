@@ -1,26 +1,42 @@
-# Code Blueprint: Parallel Subshell PID Tracking & Barrier Wait
+# Structural Scaffolding: Parallel Subshell PID Tracking & Barrier Wait
 
-Launch multiple independent tasks concurrently and establish a deterministic barrier wait using Bash arrays:
+To prevent downstream reducers from running against partially written intermediate files, track all spawned background PIDs in an array and establish a synchronization barrier:
+
+---
+
+## Pattern: Fork-Join Barrier Synchronization
 
 ```bash
-# Blueprint Pattern:
-map_pids=()
+# 1. Initialize array to capture the worker cohort:
+worker_pids=()
 
-for part in part_*.log; do
-  [[ -f "$part" ]] || continue
+# 2. Fan-out / Fork phase:
+for partition in data_*.log; do
+    [[ -f "$partition" ]] || continue
 
-  # Spawn task in background subshell:
-  bash mapper.sh "$part" &
+    # Spawn mapper in background subshell:
+    run_mapper "$partition" &
 
-  # Capture PID of just-spawned background subshell:
-  map_pids+=("$!")
+    # Capture the PID of the just-forked background process:
+    worker_pids+=("$!")
 done
 
-# Barrier: Wait for ALL mapped subshells to finish:
-wait "${map_pids[@]}"
+# 3. Join / Barrier phase:
+# Blocks until EVERY background worker in the cohort has terminated:
+wait "${worker_pids[@]}"
 
-# Run aggregation step only after all outputs are completely flushed:
-python3 reducer.py
+# 4. Reduction phase:
+# Guaranteed that all partition intermediate outputs are completely flushed to disk:
+run_reducer
 ```
 
-> **Key Rule**: Storing `$!` into an array (`pids+=("$!")`) and calling `wait "${pids[@]}"` ensures the script waits for the entire cohort of background jobs before proceeding to the reduction step.
+---
+
+## Verifying Barrier Synchronization
+
+Inspect the intermediate outputs before reduction:
+```bash
+# Confirm all expected summary partitions exist:
+ls -lh summary_part_*.tsv
+```
+Every partition file must be present and fully written before the reducer executes.
