@@ -31,6 +31,6 @@ verification:
     - "All 5,000 records successfully processed into 'processed.log'"
 
 hints:
-  - "Never buffer large streaming datasets into shell arrays 'data+=(\"$line\")'."
-  - "Process line-by-line using streaming redirection: 'while read -r line; do ... done < feed.raw > processed.log'."
-  - "Streaming pipelines maintain O(1) constant memory complexity regardless of input size."
+  - "Diagnostic: Monitor memory metrics using '/proc/$PID/status' ('VmRSS' and 'VmHWM'). Inspect '/sys/fs/cgroup/memory.events' to see if 'oom' or 'oom_kill' counters increment during execution."
+  - "Mechanism: The Linux cgroup memory controller terminates processes exceeding 'memory.max' using uncatchable SIGKILL. In Bash, accumulating records in arrays ('records+=(\"$line\")') causes rapid heap memory explosion."
+  - "Blueprint: Refactor the ingestion loop to process lines strictly one-at-a-time using stream redirection: redirect input into the loop ('done < input') and output directly to the log ('done > output') for O(1) constant memory."
