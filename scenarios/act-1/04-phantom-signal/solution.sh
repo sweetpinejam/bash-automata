@@ -1,29 +1,69 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# REFERENCE SOLUTION: Proxy Daemon with Signal Handling
+# REFERENCE SOLUTION: SCENARIO 1.04 (The Phantom Signal)
 # ==============================================================================
+# Zero-downtime proxy daemon with SIGHUP hot reloads and SIGUSR1 telemetry dumps.
+# ==============================================================================
+
 set -euo pipefail
 
-log_file="proxy.log"
-echo "$$" > proxy.pid
-echo "PROXY_STARTED" > "$log_file"
+CONF_FILE="app.conf"
+LOG_FILE="proxy.log"
+PID_FILE="proxy.pid"
+METRICS_FILE="metrics.dump"
 
-source app.conf
+log_info() {
+    echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [INFO] $*" >> "$LOG_FILE"
+}
 
+# ------------------------------------------------------------------------------
+# CLI Argument Parsing
+# ------------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --config)
+            CONF_FILE="$2"
+            shift 2
+            ;;
+        --log)
+            LOG_FILE="$2"
+            shift 2
+            ;;
+        --pid-file)
+            PID_FILE="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+echo "$$" > "$PID_FILE"
+echo "PROXY_STARTED" > "$LOG_FILE"
+log_info "Proxy daemon booted successfully (PID: $$)"
+
+# Initial configuration load
+source "$CONF_FILE"
+
+# ------------------------------------------------------------------------------
+# Signal Handlers
+# ------------------------------------------------------------------------------
 reload_config() {
-  source app.conf
-  echo "CONFIG_RELOADED: BACKEND=$BACKEND" >> "$log_file"
+    source "$CONF_FILE"
+    echo "CONFIG_RELOADED: BACKEND=$BACKEND" >> "$LOG_FILE"
 }
 
 dump_metrics() {
-  echo "REQUESTS_HANDLED=$requests_handled BACKEND=$BACKEND" > metrics.dump
+    echo "REQUESTS_HANDLED=$requests_handled BACKEND=$BACKEND" > "$METRICS_FILE"
 }
 
 terminate_daemon() {
-  running=false
+    running=false
+    rm -f "$PID_FILE"
 }
 
-# Trap SIGHUP for reload, SIGUSR1 for metrics, SIGTERM/INT for clean shutdown
+# Bind signal traps
 trap reload_config HUP
 trap dump_metrics USR1
 trap terminate_daemon TERM INT EXIT
@@ -31,10 +71,13 @@ trap terminate_daemon TERM INT EXIT
 running=true
 requests_handled=0
 
+# Responsive daemon event loop
 while $running; do
-  (( requests_handled += 1 ))
-  sleep 0.1 &
-  wait $! 2>/dev/null || true
+    (( requests_handled += 1 ))
+
+    # Background sleep + wait allows immediate signal interruption without stalls
+    sleep 0.1 &
+    wait $! 2>/dev/null || true
 done
 
-echo "PROXY_TERMINATED_CLEANLY" >> "$log_file"
+log_info "Proxy daemon exiting cleanly."

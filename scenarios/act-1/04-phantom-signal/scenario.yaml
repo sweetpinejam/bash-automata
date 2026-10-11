@@ -11,7 +11,7 @@ limits:
   pids_limit: 30
 
 briefing:
-  situation: "An infrastructure proxy daemon ('proxy.sh') must support zero-downtime hot reloading. When CI sends 'kill -HUP $PID' after updating 'app.conf', the daemon unexpectedly crashes because SIGHUP is untrapped. In addition, telemetry scrapers querying stats with 'SIGUSR1' are ignored."
+  situation: "An infrastructure proxy daemon ('proxy.sh') must support zero-downtime hot reloading. When CI sends 'kill -HUP $PID' after updating 'app.conf', the daemon unexpectedly crashes because SIGHUP is untrapped (default action: terminate process). In addition, telemetry scrapers querying stats with 'SIGUSR1' are ignored."
   objective: "Harden 'proxy.sh' using UNIX signal traps: implement 'trap reload_config HUP' to hot-reload 'app.conf' without terminating the process, and 'trap dump_metrics USR1' to write current load into 'metrics.dump'."
 
 files:
@@ -32,7 +32,6 @@ verification:
     - "Gracefully terminates on SIGTERM with zero zombies"
 
 hints:
-  - "The default action for unhandled SIGHUP is process termination."
-  - "Trap signals using: 'trap handler_func HUP USR1'."
-  - "Inside the HUP handler, re-read 'app.conf': 'source app.conf' or read variables."
-  - "Use a non-blocking loop with 'sleep' or 'wait' so signals are processed promptly."
+  - "When an unhandled signal strikes a process, the Linux kernel executes the default disposition. For SIGHUP and SIGUSR1, the default action is immediate process termination (exit code 128 + signal number). Check running PIDs with 'ps -p $PID' to see if your daemon died."
+  - "To catch signals without terminating, register custom functions using 'trap <func> HUP' and 'trap <func> USR1'. When a signal is caught, the kernel transfers control to your function and then resumes the main loop."
+  - "Avoid foreground 'sleep N' in your loop; foreground commands block signal execution until they finish. Instead, use background sleep paired with the wait built-in ('sleep 0.1 & wait $! 2>/dev/null || true'), which unblocks immediately when signals arrive."
