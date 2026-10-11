@@ -36,6 +36,6 @@ verification:
     - "Recovers cleanly from stale socket files left by crashes"
 
 hints:
-  - "Before launching 'python3 daemon.py', always unlink any existing socket file with 'rm -f \"$SOCKET_FILE\"'."
-  - "When stopping an existing process, send SIGTERM, then loop on 'kill -0 \"$pid\"' until the process exits."
-  - "After starting the background daemon, loop using '[[ -S \"$SOCKET_FILE\" ]] && python3 client.py' to verify readiness before exiting."
+  - "Diagnostic: Use 'ls -l daemon.sock' and 'ss -x -a' to inspect socket inode state. Notice that if daemon.sock exists when the process starts, bind() fails immediately with EADDRINUSE."
+  - "Mechanism: Unix domain sockets exist as physical filesystem inodes (S_IFSOCK). Unscheduled crashes leave stale socket files on disk, blocking subsequent binds until explicitly unlinked."
+  - "Blueprint: Implement a two-phase lifecycle: in 'stop', send SIGTERM and poll with 'kill -0' until the process exits; in 'start', unlink stale socket files and poll readiness ('[[ -S ... ]]' + client ping) before returning."
