@@ -1,27 +1,44 @@
-# Code Blueprint: Dynamic Slot Replenishment with `wait -n`
+# Structural Scaffolding: Dynamic Slot Replenishment with `wait -n`
 
-Instead of waiting for all workers in lockstep batches (`wait`), use `wait -n` (Bash 4.3+) to wait for the next single background job to terminate:
+To prevent CPU worker slots from sitting idle while waiting for stragglers in lockstep batches, replenish capacity dynamically using `wait -n`:
+
+---
+
+## Pattern: Dynamic Worker Pool Clamp
 
 ```bash
-# Blueprint Pattern:
 MAX_WORKERS=3
 active=0
 
 while IFS= read -r task || [[ -n "$task" ]]; do
-  [[ -n "$task" ]] || continue
+    [[ -n "$task" ]] || continue
 
-  python3 worker.py "$task" &
-  (( active += 1 ))
+    # Dispatch worker to background
+    run_worker "$task" &
+    active=$(( active + 1 ))
 
-  # When pool reaches capacity, wait for ANY single child to finish:
-  if (( active >= MAX_WORKERS )); then
-    wait -n
-    (( active -= 1 ))
-  fi
+    # When pool reaches capacity, wait for ANY single child to finish:
+    if (( active >= MAX_WORKERS )); then
+        wait -n
+        # Safe assignment arithmetic avoiding (( 0 )) crash under set -e
+        active=$(( active - 1 ))
+    fi
 done < "$QUEUE_FILE"
 
-# Drain any remaining active workers:
+# Final Barrier: Drain all remaining active workers before terminating
 wait
 ```
 
-> **Key Rule**: `wait -n` pauses until **any** background job terminates and returns its exit code. Decrementing `(( active -= 1 ))` immediately unlocks the loop to launch the next pending task.
+---
+
+## Verifying Concurrency & Throughput
+
+Observe that worker slots never sit idle during queue execution:
+```bash
+# Monitor active worker subshells:
+while true; do
+    ps aux | grep "[w]orker.py" | wc -l
+    sleep 0.05
+done
+```
+The active worker count will remain steadily pegged at 3 until the queue drains.
