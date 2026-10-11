@@ -1,0 +1,38 @@
+id: act-2-10-graceful-drain
+act: 2
+order: 10
+title: "The Graceful Drain Teardown"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-2049: Rolling deployment updates sever queue consumer pods mid-flight, leaving active database transactions corrupted and uncommitted. Container evictions must drain gracefully."
+  task: "Refactor 'worker_service.sh' to trap SIGTERM/SIGINT, complete any currently in-flight transaction without truncation, refuse new queue work, and log 'DRAIN_COMPLETED' before exiting code 0."
+  constraints:
+    - "Trap SIGTERM and SIGINT signals."
+    - "Any transaction started before SIGTERM must be fully committed ('TX_COMMITTED')."
+    - "Do not begin new queue items after receiving the drain signal."
+    - "Record 'DRAIN_COMPLETED' in drain.log and exit code 0."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/worker_broken.sh"
+      dest: "workspace/worker_service.sh"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Worker terminates cleanly with return code 0 upon SIGTERM"
+    - "Zero torn or severed transactions: all started jobs are fully committed"
+    - "'DRAIN_COMPLETED' is recorded in drain.log"
+
+hints:
+  - "Initialize 'draining=false' and trap SIGTERM: 'trap \"draining=true\" TERM INT'."
+  - "Before picking up a new transaction and after committing one, check: 'if $draining; then break; fi'."
+  - "After breaking the loop, write 'DRAIN_COMPLETED' to drain.log and clean up worker.pid."

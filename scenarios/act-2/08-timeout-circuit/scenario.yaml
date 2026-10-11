@@ -1,0 +1,39 @@
+id: act-2-08-timeout-circuit
+act: 2
+order: 8
+title: "The Cascading Timeout Shield"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-1088: Upstream microservice network stalls cause worker processes to hang forever, exhausting connection pools. The deployment container lacks the GNU 'timeout' binary."
+  task: "Implement a pure Bash timeout wrapper 'run_with_timeout' in 'gateway_caller.sh' that cancels hanging subprocesses after 1 second, reaps orphan processes, and returns code 124."
+  constraints:
+    - "Do NOT use the external 'timeout' command."
+    - "Hanging commands must be interrupted and killed in under 2 seconds."
+    - "Zero orphaned subshell or python processes lingering in process table."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/caller_broken.sh"
+      dest: "workspace/gateway_caller.sh"
+    - src: "fixtures/upstream_rpc.py"
+      dest: "workspace/upstream_rpc.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Fast commands execute and complete normally with exit code 0"
+    - "Hanging commands are interrupted after 1 second with exit code 124"
+    - "No lingering orphan processes detected in kernel table"
+
+hints:
+  - "Spawn the target command in background: '\"$@\" & cmd_pid=$!'."
+  - "Spawn a parallel sleep timer in background: '( sleep \"$timeout\"; kill -TERM \"$cmd_pid\" ) & timer_pid=$!'."
+  - "Use 'wait \"$cmd_pid\"' and ensure you kill the timer if the command finished early."

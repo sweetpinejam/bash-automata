@@ -1,0 +1,39 @@
+id: act-2-09-flock-mutex
+act: 2
+order: 9
+title: "The Advisory Lock Contest"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-3104: Nightly metric reports are corrupted. Multiple concurrent cron workers append multi-line TSV records to metrics_dump.tsv simultaneously, causing torn rows and interleaved fields."
+  task: "Harden 'cron_writer.sh' using Linux kernel advisory file locks ('flock') on a dedicated file descriptor to guarantee atomic multi-line record writes across all concurrent workers."
+  constraints:
+    - "Do NOT serialize the workers into a single-threaded queue."
+    - "Use 'flock' to synchronize access across workers."
+    - "Every 3-line record (START_ROW, payload, END_ROW) must remain contiguous without interleaving."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/writer_broken.sh"
+      dest: "workspace/cron_writer.sh"
+    - src: "fixtures/multi_runner.sh"
+      dest: "workspace/multi_runner.sh"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "All 4 workers complete and produce 120 total output lines"
+    - "Kernel advisory lock ('flock') is utilized for mutual exclusion"
+    - "Zero torn or interleaved multi-line rows in metrics_dump.tsv"
+
+hints:
+  - "Open a dedicated lock file descriptor at the start of the script: 'exec 200>\"$LOCK_FILE\"'."
+  - "Before writing each 3-line record, acquire the exclusive lock with 'flock -x 200'."
+  - "After writing the record, release the lock with 'flock -u 200'."

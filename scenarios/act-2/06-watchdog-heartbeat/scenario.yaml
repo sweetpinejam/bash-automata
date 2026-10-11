@@ -1,0 +1,39 @@
+id: act-2-06-watchdog-heartbeat
+act: 2
+order: 6
+title: "The Self-Healing Watchdog Heartbeat"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-7119: Telemetry ingest pipelines have halted. Investigation reveals worker_daemon.py is frozen in a silent deadlock; because the PID remains alive, naive monitoring reports the service is healthy!"
+  task: "Harden 'watchdog.sh' to detect timestamp staleness in 'heartbeat.ts'. If the pulse is older than 2 seconds, terminate the frozen process (escalating to SIGKILL) and respawn a fresh daemon."
+  constraints:
+    - "Do NOT rely only on 'kill -0' process existence."
+    - "Calculate staleness using native Bash integer arithmetic: '$(( $(date +%s) - last_hb ))'."
+    - "Escalate signal termination from SIGTERM to SIGKILL if the process fails to exit."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/watchdog_broken.sh"
+      dest: "workspace/watchdog.sh"
+    - src: "fixtures/worker_daemon.py"
+      dest: "workspace/worker_daemon.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Frozen worker process is detected and killed via watchdog escalation"
+    - "Fresh worker daemon is spawned with a new active PID"
+    - "Heartbeat timestamp is successfully updated by the new instance"
+
+hints:
+  - "Read the timestamp from 'heartbeat.ts' and calculate: 'now=$(date +%s); staleness=$(( now - last_hb ))'."
+  - "If '(( staleness > 2 ))', send SIGTERM, sleep briefly, then ensure cleanup with 'kill -9'."
+  - "After removing the old PID file, launch the new daemon in the background and output 'WORKER_RESPAWNED'."

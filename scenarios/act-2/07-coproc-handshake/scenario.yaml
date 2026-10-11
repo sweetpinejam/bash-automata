@@ -1,0 +1,39 @@
+id: act-2-07-coproc-handshake
+act: 2
+order: 7
+title: "The Two-Way Coprocess Dialogue"
+difficulty: Intermediate
+timeout_seconds: 300
+
+briefing:
+  incident: "INCIDENT-6421: Automated deployment keys cannot be retrieved. The security service requires a multi-step conversational handshake; because the current script uses a standard one-way pipe, it terminates prematurely without authenticating."
+  task: "Refactor 'auth_bot.sh' to use a Bash coprocess ('coproc') to conduct the full challenge-response dialogue with 'security_cli.py' and save the resulting session token into 'session.out'."
+  constraints:
+    - "Do NOT use expect or external TTY wrappers."
+    - "Establish bidirectional communication using Bash 'coproc' file descriptors."
+    - "Save the parsed session UUID into 'session.out'."
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 50
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/auth_broken.sh"
+      dest: "workspace/auth_bot.sh"
+    - src: "fixtures/security_cli.py"
+      dest: "workspace/security_cli.py"
+
+verification:
+  test_script: "verify.py"
+  pass_criteria:
+    - "Full bidirectional challenge-response conversation succeeds"
+    - "security_cli.py completes cleanly with AUTH_SUCCESS"
+    - "session token (sess_vault_998877) is captured in session.out"
+
+hints:
+  - "Launch the coprocess using: 'coproc AUTH { python3 security_cli.py; }'."
+  - "Read stdout from the coprocess using 'read -r line <&\"${AUTH[0]}\"'."
+  - "Send stdin to the coprocess using 'echo \"...\" >&\"${AUTH[1]}\"'."
