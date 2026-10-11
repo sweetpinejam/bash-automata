@@ -1,0 +1,36 @@
+id: "act-1-07-shm-bus"
+act: 1
+order: 7
+title: "The Shared Memory Bus"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "A high-frequency metrics logger ('writer.sh') writes telemetry snapshots into a disk-backed workspace directory. Disk I/O wait and filesystem journaling degrade ingestion throughput. To achieve sub-millisecond IPC latency, the ring buffer must be relocated to Linux shared memory (/dev/shm)."
+  objective: "Refactor 'writer.sh' to write metric frames into the kernel tmpfs RAM disk at '/dev/shm/telemetry_bus.dat'. Ensure the shared memory segment is cleanly initialized, unlinked via an EXIT trap, and readable by 'consumer.py' with zero physical disk I/O."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/writer_broken.sh"
+      dest: "workspace/writer.sh"
+    - src: "fixtures/consumer.py"
+      dest: "workspace/consumer.py"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "Telemetric bus located strictly in '/dev/shm/' RAM disk"
+    - "Consumer reads 100 metric frames without disk I/O"
+    - "Automatic unlinking of shared memory node upon termination"
+
+hints:
+  - "In Linux, '/dev/shm' is a tmpfs ramdisk providing near-instantaneous in-memory IPC."
+  - "Path to use: '/dev/shm/telemetry_bus_$$.dat'."
+  - "Always trap EXIT to remove files from '/dev/shm' so RAM is not leaked."

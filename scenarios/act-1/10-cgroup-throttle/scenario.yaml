@@ -1,0 +1,36 @@
+id: "act-1-10-cgroup-throttle"
+act: 1
+order: 10
+title: "The Kernel Cgroup Throttle"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "32m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "An automated data ingest collector ('ingest.sh') consumes a high-volume event feed ('feed.raw'). Because it buffers the entire incoming payload into an in-memory array before writing to disk, memory usage spikes past the 32MB container cgroup ceiling, triggering the Linux kernel OOM (Out-of-Memory) killer."
+  objective: "Refactor 'ingest.sh' into a constant-memory streaming pipeline: stream records directly from 'feed.raw' to 'processed.log' in chunked batches without loading arrays into memory. Ensure peak memory (RSS) remains strictly below 15MB while processing all 5,000 records."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/ingest_broken.sh"
+      dest: "workspace/ingest.sh"
+    - src: "fixtures/generate_feed.py"
+      dest: "workspace/generate_feed.py"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'ingest.sh' processes all 5,000 records without being killed by OOM"
+    - "Peak resident memory (RSS) stays strictly under 15MB"
+    - "All 5,000 records successfully processed into 'processed.log'"
+
+hints:
+  - "Never buffer large streaming datasets into shell arrays 'data+=(\"$line\")'."
+  - "Process line-by-line using streaming redirection: 'while read -r line; do ... done < feed.raw > processed.log'."
+  - "Streaming pipelines maintain O(1) constant memory complexity regardless of input size."

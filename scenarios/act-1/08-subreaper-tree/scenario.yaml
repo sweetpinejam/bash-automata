@@ -1,0 +1,36 @@
+id: "act-1-08-subreaper-tree"
+act: 1
+order: 8
+title: "The Subreaper Tree"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "An orchestration job manager ('orchestrator.sh') starts a multi-process workload ('pipeline.sh'), which spawns several grandchild background workers. When 'orchestrator.sh' terminates the pipeline with standard 'kill $pid', only the direct child dies; all grandchild processes remain alive as orphaned rogue tasks."
+  objective: "Refactor 'orchestrator.sh' and 'pipeline.sh' to use POSIX Process Groups (PGID): ensure that tearing down the job signals the entire process group ('kill -TERM -- -$PID' or 'kill -TERM -- -$$') so that zero grandchild processes survive termination."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/orchestrator_broken.sh"
+      dest: "workspace/orchestrator.sh"
+    - src: "fixtures/pipeline.sh"
+      dest: "workspace/pipeline.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'pipeline.sh' and all grandchild background tasks boot successfully"
+    - "Tearing down the job terminates the direct child AND all grandchild workers"
+    - "Zero orphaned rogue processes detected in 'ps aux' after teardown"
+
+hints:
+  - "In Unix, sending a signal to a negative PID 'kill -- -$PGID' broadcasts the signal to the ENTIRE Process Group."
+  - "To broadcast to your script's own process group: 'kill -TERM -- -$$'."
+  - "Use an EXIT trap: 'trap 'kill -TERM -- -$$ 2>/dev/null \|\| true' EXIT TERM INT'."

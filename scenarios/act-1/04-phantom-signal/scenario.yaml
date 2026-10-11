@@ -1,0 +1,38 @@
+id: "act-1-04-phantom-signal"
+act: 1
+order: 4
+title: "The Phantom Signal"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "An infrastructure proxy daemon ('proxy.sh') must support zero-downtime hot reloading. When CI sends 'kill -HUP $PID' after updating 'app.conf', the daemon unexpectedly crashes because SIGHUP is untrapped. In addition, telemetry scrapers querying stats with 'SIGUSR1' are ignored."
+  objective: "Harden 'proxy.sh' using UNIX signal traps: implement 'trap reload_config HUP' to hot-reload 'app.conf' without terminating the process, and 'trap dump_metrics USR1' to write current load into 'metrics.dump'."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/proxy_broken.sh"
+      dest: "workspace/proxy.sh"
+    - src: "fixtures/app.conf"
+      dest: "workspace/app.conf"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'proxy.sh' stays running across SIGHUP and hot-reloads new config"
+    - "Logs 'CONFIG_RELOADED' to 'proxy.log' with new configuration value"
+    - "'proxy.sh' responds to SIGUSR1 by writing metrics to 'metrics.dump'"
+    - "Gracefully terminates on SIGTERM with zero zombies"
+
+hints:
+  - "The default action for unhandled SIGHUP is process termination."
+  - "Trap signals using: 'trap handler_func HUP USR1'."
+  - "Inside the HUP handler, re-read 'app.conf': 'source app.conf' or read variables."
+  - "Use a non-blocking loop with 'sleep' or 'wait' so signals are processed promptly."

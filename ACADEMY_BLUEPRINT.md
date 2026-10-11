@@ -69,8 +69,18 @@ Every script, scenario, and tool in this platform strictly adheres to these five
 
 ## 4. The 50-Lesson Master Curriculum (The 5 Tracks)
 
-* **Track 1: POSIX Shell & Systems Plumbing** (Lessons 01 – 10)
-* **Track 2: Process Control, Concurrency & IPC** (Lessons 11 – 20)
-* **Track 3: The Dynamic Duo (Bash + Python Stream Synergy)** (Lessons 21 – 30)
-* **Track 4: Simulated Web, Sockets & DevOps** (Lessons 31 – 40)
-* **Track 5: Algorithmic Automation & Intelligent Systems** (Lessons 41 – 50)
+* **Track 1: POSIX Shell & Systems Plumbing** (Missions 1.01 – 1.10 - LIVE & PLAYABLE)
+  * `1.01: The Choked Pipe` — 5,000 req/s stream decoupling via named pipes (`mkfifo`) and binary buffering under 64MB RAM.
+  * `1.02: The Leaking Descriptor` — Custom file descriptor lifecycle (`exec {fd}<...`, `exec {fd}<&-`) to defeat `ulimit -n` table leaks.
+  * `1.03: The Silent Deadlock` — Resolving circular FIFO blocking deadlocks in bidirectional Python-Bash handshakes.
+  * `1.04: The Phantom Signal` — Zero-downtime hot reloading (`SIGHUP`) and on-demand telemetry dumps (`SIGUSR1`).
+  * `1.05: The Orphan Graveyard` — Reaping zombie processes (`[defunct]`) using active `wait` / `wait -n` supervisor reapers.
+  * `1.06: The Atomic Swap` — Zero-downtime blue-green release swapping using atomic kernel `rename(2)` (`mv -T`).
+  * `1.07: The Shared Memory Bus` — High-speed sub-millisecond IPC over `/dev/shm` tmpfs RAM disk with zero storage I/O.
+  * `1.08: The Subreaper Tree` — Cascading process tree termination (`pkill -P`) to eradicate orphaned grandchild processes.
+  * `1.09: The Unbuffered Stream` — Defeating libc 4KB stdio block-buffering latency stalls using line-buffering (`stdbuf -oL`, `--line-buffered`).
+  * `1.10: The Kernel Cgroup Throttle` — Preventing OOM killer slaughter under 32MB cgroups using O(1) constant-memory streaming pipelines.
+* **Track 2: Process Control, Concurrency & IPC** (Missions 2.01 – 2.10)
+* **Track 3: The Dynamic Duo (Bash + Python Stream Synergy)** (Missions 3.01 – 3.10)
+* **Track 4: Simulated Web, Sockets & DevOps** (Missions 4.01 – 4.10)
+* **Track 5: Algorithmic Automation & Intelligent Systems** (Missions 5.01 – 5.10)

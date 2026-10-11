@@ -1,0 +1,37 @@
+id: "act-1-03-silent-deadlock"
+act: 1
+order: 3
+title: "The Silent Deadlock"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "A microservice worker ('agent.sh') communicates with a Python supervisory controller ('controller.py') over two named pipes ('req.fifo' and 'resp.fifo'). Both processes attempt to open their receiving pipe for reading before writing, causing a mutual kernel deadlock on the open() system call."
+  objective: "Refactor 'agent.sh' to break the deadlock: decouple the FIFO handshake by opening the response listener asynchronously in the background, or open the pipes in read-write mode ('exec 3<> req.fifo') so the handshake completes without hanging."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/agent_broken.sh"
+      dest: "workspace/agent.sh"
+    - src: "fixtures/controller.py"
+      dest: "workspace/controller.py"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'agent.sh' completes full bidirectional ping-pong handshake in <2 seconds"
+    - "Zero processes stuck in uninterruptible sleep state"
+    - "'handshake.log' records 'HANDSHAKE_ACK_RECEIVED'"
+
+hints:
+  - "In POSIX, opening a FIFO for reading 'open(O_RDONLY)' blocks until a writer connects."
+  - "Opening a FIFO for writing 'open(O_WRONLY)' also blocks until a reader connects."
+  - "If both processes wait to read first, they deadlock permanently."
+  - "In Bash on Linux, opening in read-write mode 'exec 3<> pipe' avoids blocking on open."

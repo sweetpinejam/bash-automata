@@ -1,0 +1,35 @@
+id: "act-1-05-orphan-graveyard"
+act: 1
+order: 5
+title: "The Orphan Graveyard"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "An automated batch worker supervisor ('supervisor.sh') continuously spawns worker tasks in the background. Because it never reaps terminating children, the Linux process table fills with zombie processes ('[defunct]'), risking system-wide PID starvation."
+  objective: "Refactor 'supervisor.sh' to continuously reap finished child processes in real-time using 'wait -n' or 'trap ... CHLD'. Ensure 20 batch jobs complete with ZERO zombie processes lingering in the process table."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/supervisor_broken.sh"
+      dest: "workspace/supervisor.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "All 20 batch tasks execute and write to 'batch.done'"
+    - "Zero zombie processes ('[defunct]') detected in 'ps aux' during and after execution"
+    - "'supervisor.sh' exits 0 cleanly"
+
+hints:
+  - "When a child process terminates, it remains in state 'Z' (Zombie / defunct) until its parent calls 'wait'."
+  - "To wait for any single child to exit: 'wait -n'."
+  - "Or trap child termination signals: 'trap 'wait -n 2>/dev/null \|\| true' CHLD'."
+  - "To inspect zombies in Linux: 'ps -eo pid,stat,comm | grep -w Z'."

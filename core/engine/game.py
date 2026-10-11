@@ -36,7 +36,7 @@ class InteractiveGame:
                 print(UI.colorize("\n  [SESSION TERMINATED] Automata Command Center offline.\n", Colors.DIM))
                 break
             elif choice == "1":
-                self._mission_select_menu(act_filter=0)
+                self._academy_module_menu()
             elif choice == "2":
                 self._mission_select_menu(act_filter=None)
             elif choice == "3":
@@ -51,6 +51,100 @@ class InteractiveGame:
     def _print_header(self) -> None:
         print("\033[H\033[J", end="")  # Clear screen cleanly
         print(UI.banner())
+
+    def _academy_module_menu(self) -> None:
+        """Module selection submenu for The Academy (Act 0)."""
+        modules = [
+            ("Module 1: Variables, Quoting & String Surgery", (1, 4), "📦"),
+            ("Module 2: Conditionals, Numbers & File Tests", (5, 8), "⚖️"),
+            ("Module 3: Control Flow, Safe Loops & Streams", (9, 12), "🔄"),
+            ("Module 4: Functions, Scoping & Argument Discipline", (13, 16), "🧩"),
+            ("Module 5: Resilient Automation & Systems Traps", (17, 20), "🛡️"),
+        ]
+
+        while True:
+            self._print_header()
+            print("  " + UI.colorize("▶ THE ACADEMY: BOOTCAMP MODULE SELECTION", Colors.BRIGHT_WHITE, Colors.BOLD))
+            print("  Master fundamental Linux mechanics and de-mine Bash traps across 5 modules.\n")
+
+            all_scenarios = [s for s in self.runner.registry.list_all() if s.act == 0]
+            progress_map = {row["scenario_id"]: row for row in self.runner.state.get_all_scenarios()}
+
+            for idx, (title, (start_ord, end_ord), icon) in enumerate(modules, 1):
+                mod_scenarios = [s for s in all_scenarios if start_ord <= s.order <= end_ord]
+                verified_count = sum(1 for s in mod_scenarios if progress_map.get(s.id, {}).get("status") == "verified")
+                total_count = len(mod_scenarios)
+
+                if verified_count == total_count and total_count > 0:
+                    badge = UI.colorize(f"[{verified_count}/{total_count} DONE]", Colors.BRIGHT_GREEN, Colors.BOLD)
+                elif verified_count > 0:
+                    badge = UI.colorize(f"[{verified_count}/{total_count} IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
+                else:
+                    badge = UI.colorize(f"[{verified_count}/{total_count}]", Colors.DIM)
+
+                print(f"  [{idx}] {icon} {UI.colorize(title, Colors.BRIGHT_WHITE)} {badge} (Drills {start_ord:02d}-{end_ord:02d})")
+
+            print()
+            print("  [a] 📋 View All 20 Drills (Flat List)")
+            print("  [b] ⬅️ Back to Main Menu")
+            print()
+
+            choice = input("  >> Select module [1-5, a, b]: ").strip().lower()
+            if choice in ("b", "back", "q"):
+                break
+            elif choice == "a":
+                self._mission_select_menu(act_filter=0)
+            elif choice.isdigit():
+                val = int(choice)
+                if 1 <= val <= len(modules):
+                    title, (start_ord, end_ord), _ = modules[val - 1]
+                    self._module_drill_select_menu(title, start_ord, end_ord)
+                else:
+                    UI.warning("Invalid module number.")
+            else:
+                UI.warning("Invalid selection.")
+
+    def _module_drill_select_menu(self, module_title: str, start_ord: int, end_ord: int) -> None:
+        """Drill list submenu for a specific Academy module."""
+        while True:
+            self._print_header()
+            all_scenarios = [s for s in self.runner.registry.list_all() if s.act == 0 and start_ord <= s.order <= end_ord]
+            print("  " + UI.colorize(f"▶ {module_title.upper()}", Colors.BRIGHT_WHITE, Colors.BOLD))
+            print()
+
+            progress_map = {row["scenario_id"]: row for row in self.runner.state.get_all_scenarios()}
+
+            for idx, s in enumerate(all_scenarios, 1):
+                rec = progress_map.get(s.id)
+                status_str = rec["status"] if rec else "unstarted"
+                if status_str == "verified":
+                    badge = UI.colorize("[VERIFIED]", Colors.BRIGHT_GREEN, Colors.BOLD)
+                elif status_str == "in_progress":
+                    badge = UI.colorize("[IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
+                elif status_str == "failed":
+                    badge = UI.colorize("[FAILED]", Colors.BRIGHT_RED, Colors.BOLD)
+                else:
+                    badge = UI.colorize("[UNSTARTED]", Colors.DIM)
+
+                print(f"  [{idx}] {badge} Drill {s.order:02d}: {s.title} ({s.id})")
+
+            print("  [b] ⬅️ Back to Module Selection")
+            print()
+
+            choice = input(f"  >> Select drill [1-{len(all_scenarios)}, b]: ").strip().lower()
+
+            if choice in ("b", "back", "q"):
+                break
+
+            if choice.isdigit():
+                val = int(choice)
+                if 1 <= val <= len(all_scenarios):
+                    target = all_scenarios[val - 1]
+                    self._play_scenario(target)
+                else:
+                    UI.warning("Invalid drill number.")
+            else:
+                UI.warning("Invalid selection.")
 
     def _mission_select_menu(self, act_filter: Optional[int] = None) -> None:
         while True:

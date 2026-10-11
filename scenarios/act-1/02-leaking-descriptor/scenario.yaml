@@ -1,0 +1,35 @@
+id: "act-1-02-leaking-descriptor"
+act: 1
+order: 2
+title: "The Leaking Descriptor"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "A microservice health monitor ('monitor.sh') opens custom file descriptors (FD 3) to stream service status files. Because it fails to close them, file descriptors accumulate in /proc/$$/fd until hitting the operating system limit ('Too many open files'), crashing the monitor daemon."
+  objective: "Refactor 'monitor.sh' to manage file descriptor lifecycle defensively: ensure FD 3 is explicitly closed with 'exec 3<&-' after each poll cycle, preventing descriptor table exhaustion across 50 poll cycles."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/monitor_broken.sh"
+      dest: "workspace/monitor.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'monitor.sh' runs 50 polling cycles with exit code 0"
+    - "No file descriptor leaks in /proc/$$/fd (FD 3 closed after each cycle)"
+    - "Health summary written to 'monitor.summary'"
+
+hints:
+  - "To open an input file descriptor 3: 'exec 3< \"$file\"'."
+  - "To read from file descriptor 3: 'read -r line <&3'."
+  - "To close input file descriptor 3: 'exec 3<&-'."
+  - "To inspect open descriptors of a running shell process: 'ls -l /proc/$$/fd'."

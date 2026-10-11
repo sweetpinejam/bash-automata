@@ -1,0 +1,36 @@
+id: "act-1-09-unbuffered-stream"
+act: 1
+order: 9
+title: "The Unbuffered Stream"
+difficulty: "Intermediate"
+timeout_seconds: 30
+
+limits:
+  memory_limit: "64m"
+  cpu_quota: "1.0"
+  pids_limit: 30
+
+briefing:
+  situation: "A real-time telemetry pipeline ('pipeline.sh') pipes live event streams through filtering utilities ('producer.sh | grep ALERT | consumer.sh'). Because stdout automatically switches to 4KB block buffering when connected to a pipe, events are buffered in memory and arrive in delayed bursts, failing real-time latency thresholds."
+  objective: "Refactor 'pipeline.sh' to enforce line buffering: use 'stdbuf -oL -eL' or tool-specific line-buffering flags ('grep --line-buffered') to ensure every event is flushed across the pipe instantly as soon as it is generated."
+
+files:
+  workspace_dir: "workspace"
+  initial_files:
+    - src: "fixtures/pipeline_broken.sh"
+      dest: "workspace/pipeline.sh"
+    - src: "fixtures/producer.sh"
+      dest: "workspace/producer.sh"
+
+verification:
+  test_script: "verify.py"
+  chaos_command: ""
+  pass_criteria:
+    - "'pipeline.sh' flushes events in real-time across the pipe"
+    - "First 5 events arrive at consumer in <500ms (no 4KB block-buffer stall)"
+    - "'events.stream' contains all streamed events"
+
+hints:
+  - "The C standard library (stdio) defaults to 4KB/8KB block buffering when writing to a pipe."
+  - "To force line buffering on any binary: 'stdbuf -oL -eL command'."
+  - "GNU grep provides '--line-buffered', sed provides '-u'."
