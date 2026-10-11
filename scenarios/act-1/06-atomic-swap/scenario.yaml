@@ -29,6 +29,6 @@ verification:
     - "Uses atomic 'mv -T' or rename idiom"
 
 hints:
-  - "In Linux, 'rm' followed by 'ln -s' creates a race window where the path does not exist."
-  - "Even 'ln -sfn' is not atomic on Linux."
-  - "The only atomic replacement is rename(2): create a temporary symlink 'ln -s releases/v2 current.tmp', then atomically swap it with 'mv -T current.tmp current'."
+  - "Diagnostic: Run 'strace -e trace=unlink,symlink,rename,renameat2 bash swap.sh' to trace syscalls. Notice that 'rm' followed by 'ln -s' exposes an observable gap where the directory entry does not exist in VFS."
+  - "Mechanism: The POSIX system call 'rename(2)' guarantees an atomic directory entry switch in the kernel dentry cache. GNU 'ln -sfn' does not use rename; it executes 'unlink' followed by 'symlink'."
+  - "Blueprint: Stage the new target in a sibling temporary symlink isolated by PID, then execute an atomic in-place rename using GNU 'mv -T' (--no-target-directory) to replace the existing symlink without nesting."

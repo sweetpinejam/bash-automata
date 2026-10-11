@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fast state-driven verification for Mission 1.06: The Atomic Swap."""
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -31,8 +32,10 @@ def main():
 
     # 1. Static audit
     log("Auditing atomic rename semantics in swap.sh...")
-    if "rm " in active_code and "current" in active_code:
-        fail("Dangerous non-atomic 'rm current' detected! Deleting symlinks creates a missing-path race condition.")
+    for line in active_code.splitlines():
+        clean_line = line.split("#")[0].strip()
+        if re.search(r"\brm\s+.*(\bcurrent(?!\.tmp|\.bak)|\$SYMLINK_PATH|\${SYMLINK_PATH})", clean_line):
+            fail("Dangerous non-atomic 'rm current' detected! Deleting symlinks creates a missing-path race condition.")
 
     if "mv -T" not in active_code and "rename" not in active_code:
         fail("Missing atomic symlink rename: use 'mv -T <temp_link> current' to invoke kernel rename(2).")

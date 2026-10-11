@@ -1,16 +1,39 @@
-# Code Blueprint: Zero-Downtime Atomic Symlink Swapping
+# Structural Scaffolding: Zero-Downtime Atomic Symlink Swapping
 
-Never run `rm -f current && ln -s ... current`. The deletion step creates a race window where the path doesn't exist. Instead, leverage atomic `renameat2` via `mv -T`:
+To avoid exposing a transient `ENOENT` (file not found) state during symlink rotation, replace the naive dual-operation (`rm` followed by `ln`) with the kernel-level atomic `rename(2)` transaction.
+
+---
+
+## Pattern: Staged Atomic Inode Replacement
 
 ```bash
-# Blueprint Pattern:
-TMP_LINK="current.tmp.$$"
+# 1. Define isolated staging path in the identical directory to avoid EXDEV errors:
+STAGING_LINK="${SYMLINK_PATH}.tmp.$$"
 
-# Create a temporary symlink pointing to the new target:
-ln -s "$TARGET_RELEASE" "$TMP_LINK"
+# 2. Guarantee cleanup of orphan staging links on abnormal termination:
+trap 'rm -f "$STAGING_LINK"' EXIT
 
-# Atomically replace destination symlink with rename:
-mv -T "$TMP_LINK" current
+# 3. Create the staging symlink pointing to the next release artifact:
+ln -s "$TARGET_RELEASE" "$STAGING_LINK"
+
+# 4. Perform the atomic dentry swap:
+# -T (--no-target-directory) prevents mv from placing the staging link
+# inside an existing target directory, forcing an in-place rename(2).
+mv -T "$STAGING_LINK" "$SYMLINK_PATH"
 ```
 
-> **Key Rule**: The `-T` (`--no-target-directory`) flag treats `current` strictly as a file/link rather than a directory, causing `mv` to invoke the atomic POSIX `rename()` syscall.
+---
+
+## Verifying Inode Continuity Under Concurrency
+
+To verify that the target path never ceases to exist during rotation, concurrent processes can query inode pointers continuously:
+
+```bash
+# Continuous read without error:
+while true; do
+    stat -c "Target Inode: %i, Path: %N" current || {
+        echo "RACE CONDITION: current was missing!"
+        break
+    }
+done
+```
