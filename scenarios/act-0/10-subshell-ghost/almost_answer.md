@@ -1,13 +1,29 @@
-# Code Blueprint: Subshell Avoidance with Process Substitution
+# Code Blueprint & Almost-Answer: The Subshell Ghost
 
-Piping a command into a `while` loop (`cmd | while ...`) spawns the loop in a subshell, causing all variable mutations to vanish when the loop finishes. Use process substitution instead:
+If you need structural loop templates for `auditor.sh`:
 
+### 1. Process Substitution Loop (Preserving Shell Memory)
 ```bash
-# Blueprint Pattern:
-while IFS=, read -r tx_id account amount; do
-  [[ -n "$amount" ]] || continue
-  (( total_amount += amount ))
-done < <(tail -n +2 ledger.csv)
-```
+while IFS=, read -r tx_id account_id type amount auth_code; do
+    [[ -n "$amount" ]] || continue
+    (( ++TOTAL_TX ))
 
-> **Key Rule**: `< <(command)` runs `command` in a file descriptor pipe while keeping the `while` loop in the main shell environment, preserving variable state.
+    current_bal="${BALANCES[$account_id]:-0}"
+
+    if [[ "$type" == "CREDIT" ]]; then
+        (( TOTAL_CREDITS += amount ))
+        (( current_bal += amount ))
+    elif [[ "$type" == "DEBIT" ]]; then
+        (( TOTAL_DEBITS += amount ))
+        (( current_bal -= amount ))
+    fi
+
+    BALANCES["$account_id"]="$current_bal"
+
+    # Fraud detection
+    if (( amount > 5000 )) && [[ "$auth_code" == "NONE" ]]; then
+        (( ++FLAGGED_FRAUD ))
+        echo "[FRAUD_ALERT] tx=$tx_id account=$account_id amount=$amount reason=UNAUTHORIZED_LARGE_TRANSFER" >> "fraud_alerts.log"
+    fi
+done < <(tail -n +2 "$INPUT_LEDGER")
+```

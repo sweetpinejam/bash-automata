@@ -1,15 +1,30 @@
-# Code Blueprint: Stream-Safe Line-by-Line Reading
+# Code Blueprint & Almost-Answer: Stream-Safe While Loops
 
-Never use `for line in $(cat file)` to read text lines. Use `while IFS= read -r line` with input redirection to preserve indentation, spaces, and backslashes:
+If you need structural loop templates for `compiler.sh`:
 
+### 1. The Stream-Safe While Loop
 ```bash
-# Blueprint Pattern:
 while IFS= read -r line || [[ -n "$line" ]]; do
-  echo "$line" >> "$output"
-done < "$input"
-```
+    (( ++TOTAL_LINES ))
 
-> **Key Rule**:
-> - `IFS=` prevents trimming leading/trailing whitespace.
-> - `-r` prevents backslash escaping.
-> - `|| [[ -n "$line" ]]` ensures the final line is not dropped if it lacks a trailing newline.
+    # 1. Skip comments if flag is set
+    if (( STRIP_COMMENTS == 1 )) && [[ "$line" =~ ^[[:space:]]*# ]]; then
+        (( ++STRIPPED_LINES ))
+        continue
+    fi
+
+    # 2. In-memory substitutions
+    for key in "${!VARS[@]}"; do
+        placeholder="{{$key}}"
+        if [[ "$line" == *"$placeholder"* ]]; then
+            val="${VARS[$key]}"
+            line="${line//$placeholder/$val}"
+            (( ++SUBSTITUTED_COUNT ))
+        fi
+    done
+
+    # 3. Output rendered line
+    echo "$line" >> "$OUTPUT_FILE"
+    (( ++WRITTEN_LINES ))
+done < "$TEMPLATE_FILE"
+```

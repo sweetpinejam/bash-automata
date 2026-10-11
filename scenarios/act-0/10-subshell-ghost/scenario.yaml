@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated financial ledger audit bot ('auditor.sh') always outputs 'FINAL_AUDIT_TOTAL=0' even though 'ledger.csv' contains thousands of dollars in transactions. The developer piped the stream into a while loop ('cat ... | while ...'), trapping variable mutations inside an ephemeral subshell."
-  objective: "Refactor 'auditor.sh' to feed the loop without piping: use process substitution '< <(tail -n +2 ledger.csv)' or file redirection to execute the loop in the main shell context, allowing 'total_amount' to survive and output the correct sum."
+  situation: "An automated financial audit bot ('auditor.sh') produces empty reports and zero balances. The loop is piped from 'tail' ('tail | while'), causing all variable mutations to vanish inside an ephemeral child subshell upon loop termination."
+  objective: "Build a multi-account financial reconciliation engine in 'auditor.sh' using Process Substitution ('done < <(tail -n +2 ...)') to preserve variable mutations in the parent shell. Track account balances, flag unauthorized large transactions, and emit 'audit_report.tsv'."
 
 files:
   workspace_dir: "workspace"
@@ -24,11 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'auditor.sh' executes with exit code 0"
-    - "No pipeline '| while' construct used"
-    - "Outputs 'FINAL_AUDIT_TOTAL=3750' to stdout and saves to 'audit.out'"
+    - "No pipeline '| while' constructs used"
+    - "Uses process substitution '< <(tail ...)'"
+    - "Preserves running financial balances and associative array state"
+    - "Flags unauthorized transfers (>5000 with auth NONE) into 'fraud_alerts.log'"
+    - "Generates valid 'audit_report.tsv' with exact metrics"
 
 hints:
-  - "Each command in a pipeline runs in its own subshell. Variables modified inside a piped loop vanish when the loop terminates."
-  - "To feed a command's output into a loop without piping, use process substitution: 'done < <(command)'."
-  - "Alternatively, redirect the file directly: 'done < ledger.csv'."
+  - "Process substitution syntax: 'while IFS=, read -r ...; do ... done < <(tail -n +2 \"$INPUT_LEDGER\")'."
+  - "Associative array declaration: 'declare -A BALANCES'."
+  - "Update balances: 'BALANCES[\"$account_id\"]=$(( ${BALANCES[\"$account_id\"]:-0} + amount ))'."

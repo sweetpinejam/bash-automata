@@ -1,24 +1,82 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Service Control Dispatcher
-# Goal: Cleanly route commands using case ... in ... esac
+# DRILL 0.11: The Command Dispatcher (Production Daemon Supervisor)
+# ==============================================================================
+# INSTRUCTIONS:
+# Implement a robust daemon supervisor CLI in pure Bash.
+#
+# HARD CONSTRAINT:
+# All command routing MUST use 'case "$action" in ... esac'.
+#
+# Arguments:
+#   $1 = action (start, stop, restart, status, -h, --help, help)
+#
+# Requirements:
+# 1. PID file: "service.pid".
+# 2. Check process liveness via 'kill -0 "$pid" 2>/dev/null'.
+# 3. Actions:
+#    - "start":
+#        If running: print error to stderr and exit 1.
+#        If stale PID: remove stale PID file.
+#        Start background process: '(sleep 300 &) >/dev/null 2>&1' or 'sleep 300 &'
+#        Save $! to service.pid.
+#        Print "SERVICE_STARTED: pid=$pid" and exit 0.
+#    - "stop":
+#        If no PID file: print error to stderr and exit 1.
+#        If process alive: kill "$pid", remove service.pid, print "SERVICE_STOPPED: pid=$pid", exit 0.
+#        If process dead: remove service.pid, print "SERVICE_STOPPED: cleaned stale pid", exit 0.
+#    - "restart":
+#        Stop (if running) then start. Print "SERVICE_RESTARTED: pid=$pid", exit 0.
+#    - "status":
+#        If running: print "STATUS: RUNNING (pid=$pid)", exit 0.
+#        If stale PID: print "STATUS: STALE_PID (pid=$pid)", exit 2.
+#        If not running: print "STATUS: STOPPED", exit 3.
+#    - "-h" | "--help" | "help":
+#        Print usage and exit 0.
+#    - "*":
+#        Print error to stderr and exit 1.
 # ==============================================================================
 set -euo pipefail
 
-action="${1:-help}"
-pid_file="service.pid"
+PID_FILE="service.pid"
+ACTION="${1:-help}"
 
-# TODO: Refactor into a case "$action" in ... esac dispatcher:
-# - "start": record current PID ($$) into $pid_file, output "SERVICE_STARTED"
-# - "stop": remove $pid_file, output "SERVICE_STOPPED"
-# - "status": check if $pid_file exists, output "STATUS_RUNNING" or "STATUS_STOPPED"
-# - "-h" | "--help" | "help": output usage and exit 0
-# - "*": output error message to stderr and exit 1
+# Helper function to check if PID in $PID_FILE is currently running in the kernel
+is_running() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
 
-if [ "$action" = "start" ]; then
-  echo "$$" > "$pid_file"
-  echo "SERVICE_STARTED"
-elif [ "$action" = "stop" ]; then
-  rm -f "$pid_file"
-  echo "SERVICE_STOPPED"
-fi
+# TODO: Refactor routing into a case "$ACTION" in ... esac dispatcher:
+case "$ACTION" in
+    start)
+        # TODO: Handle start logic
+        echo "SERVICE_NOT_IMPLEMENTED"
+        exit 1
+        ;;
+    stop)
+        # TODO: Handle stop logic
+        echo "SERVICE_NOT_IMPLEMENTED"
+        exit 1
+        ;;
+    status)
+        # TODO: Handle status logic
+        echo "SERVICE_NOT_IMPLEMENTED"
+        exit 1
+        ;;
+    -h|--help|help)
+        echo "Usage: $0 {start|stop|restart|status|help}"
+        exit 0
+        ;;
+    *)
+        echo "Error: Unknown action '$ACTION'" >&2
+        echo "Run '$0 --help' for usage." >&2
+        exit 1
+        ;;
+esac

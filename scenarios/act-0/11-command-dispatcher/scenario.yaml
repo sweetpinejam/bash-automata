@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An infrastructure service control wrapper ('service_ctl.sh') uses fragile, nested 'if/elif' blocks. It fails to handle invalid actions cleanly, lacks pattern grouping for help flags ('-h|--help'), and permits unhandled commands to succeed silently with exit code 0."
-  objective: "Refactor 'service_ctl.sh' to use a modern, idiomatic Bash 'case ... in ... esac' dispatcher. Implement clean handlers for 'start', 'stop', 'status', grouped help flags ('-h|--help|help'), and a wildcard catch-all ('*') that exits with status 1 on unknown commands."
+  situation: "An infrastructure service control wrapper ('service_ctl.sh') uses fragile nested if/elif blocks. It leaves stale PID files, permits duplicate daemon instances, and silently ignores invalid commands."
+  objective: "Build a production daemon supervisor in 'service_ctl.sh' using 'case ... in ... esac'. Manage PID file lifecycles with 'kill -0', detect and self-heal stale PID files, handle 'start', 'stop', 'restart', 'status', grouped help flags, and wildcard error handling."
 
 files:
   workspace_dir: "workspace"
@@ -24,15 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'service_ctl.sh' uses 'case ... in ... esac' construct"
-    - "'start' creates 'service.pid' and exits 0"
-    - "'status' reports running or stopped status accurately and exits 0"
-    - "'stop' removes 'service.pid' and exits 0"
-    - "'-h', '--help', and 'help' print usage information and exit 0"
-    - "Unknown actions exit with status 1"
+    - "Uses 'case ... in ... esac' command dispatcher"
+    - "Manages background process PID file and rejects duplicate starts"
+    - "Accurately detects running processes vs stale PID files with 'kill -0'"
+    - "Handles grouped help flags ('-h|--help|help') with exit 0"
+    - "Rejects unknown commands with exit code 1"
 
 hints:
-  - "The syntax for a case dispatcher is: 'case \"$ACTION\" in pattern1) ... ;; pattern2) ... ;; *) ... ;; esac'."
-  - "Group alternate patterns using pipe '|': '-h|--help|help)'."
-  - "Always terminate each branch with double semicolons ';;'."
-  - "Always provide a fallback error handler: '*) echo \"Invalid command\" >&2; exit 1 ;;'"
+  - "The case structure: 'case \"$ACTION\" in start) ... ;; stop) ... ;; *) ... ;; esac'."
+  - "Check if process is alive: 'kill -0 \"$pid\" 2>/dev/null'."
+  - "Save background process PID: 'sleep 300 &; echo $! > \"$PID_FILE\"'."

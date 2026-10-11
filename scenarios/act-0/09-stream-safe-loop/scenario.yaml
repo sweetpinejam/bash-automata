@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated configuration compiler ('compiler.sh') reads 'template.conf' and writes 'final.conf'. It was written using a broken 'for line in $(cat ...)' loop, which word-splits on spaces, completely destroys code indentation, and corrupts backslash escape sequences."
-  objective: "Refactor 'compiler.sh' to use the canonical Bash stream-safe loop: 'while IFS= read -r line || [[ -n \"$line\" ]]; do ... done < template.conf'. Ensure exact leading indentation, tabs, backslashes, and final un-terminated lines are 100% preserved."
+  situation: "An automated config compiler ('compiler.sh') corrupts configuration files. Using a broken 'for line in $(cat ...)' loop erases leading indentation, mangles backslashes in regex, and drops lines lacking trailing newlines."
+  objective: "Build a high-fidelity template compiler in 'compiler.sh' using the canonical Bash stream-safe loop: 'while IFS= read -r line || [[ -n \"$line\" ]]; do ... done < template.conf'. Support comment stripping and dynamic placeholder substitution with 100% byte fidelity."
 
 files:
   workspace_dir: "workspace"
@@ -24,13 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'compiler.sh' executes with exit code 0"
+    - "No 'for ... in $(cat ...)' loops used"
     - "Uses 'while IFS= read -r line' construct"
-    - "No 'for ... in $(cat ...)' or '$(<...)' loops"
-    - "'final.conf' matches 'template.conf' byte-for-byte with exact indentation and backslashes preserved"
+    - "Preserves exact whitespace indentation and regex backslashes"
+    - "Preserves final lines lacking trailing newlines"
+    - "Supports '--strip-comments' and dynamic '--var KEY=VAL' substitutions"
 
 hints:
-  - "Never iterate lines with 'for line in $(cat file)' — the shell splits by words, not lines."
-  - "'IFS=' prevents 'read' from stripping leading and trailing spaces/tabs."
-  - "'-r' prevents 'read' from interpreting backslash '\\' as an escape character."
-  - "Append '|| [[ -n \"$line\" ]]' to prevent skipping the last line if it lacks a trailing newline."
+  - "The canonical stream loop: 'while IFS= read -r line || [[ -n \"$line\" ]]; do ... done < \"$file\"'."
+  - "IFS= clears field splitting, preserving spaces; -r disables backslash escaping."
+  - "Substitute placeholders: 'line=\"${line//\\{\\{$key\\}\\}/$val}\"'."

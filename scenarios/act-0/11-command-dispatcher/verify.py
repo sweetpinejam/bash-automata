@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.11: The Command Dispatcher."""
+"""State-driven verification harness for Drill 0.11: The Command Dispatcher."""
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -23,77 +24,99 @@ def main():
     if not script.exists():
         fail("Missing required script: service_ctl.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"service_ctl.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit: verify case ... in ... esac
+    log("Auditing case dispatcher structure in service_ctl.sh...")
     content = script.read_text(encoding="utf-8")
     active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
 
-    # 1. Static audit
-    log("Auditing case ... in ... esac dispatcher syntax...")
-    if "case " not in active_code or "esac" not in active_code:
-        fail("Missing 'case ... in ... esac' construct.")
+    if not re.search(r'\bcase\s+.*\s+in\b', active_code) or "esac" not in active_code:
+        fail("Missing required 'case ... in ... esac' command dispatcher construct.")
 
-    if ";;" not in active_code:
-        fail("Missing branch terminator ';;'")
+    # 1. Status when stopped
+    log("Testing initial status check (should be STOPPED, exit 3)...")
+    res1 = subprocess.run(["bash", str(script), "status"], cwd=str(workspace), capture_output=True, text=True)
+    if res1.returncode != 3:
+        fail(f"Expected exit code 3 when service is stopped, got {res1.returncode}. Output: {res1.stdout.strip()}")
+    if "STOPPED" not in res1.stdout:
+        fail(f"Expected 'STATUS: STOPPED', got: {res1.stdout.strip()}")
 
-    if "*)" not in active_code:
-        fail("Missing fallback catch-all pattern '*)'")
-
-    def run_cmd(arg: str):
-        return subprocess.run(
-            ["bash", str(script), arg],
-            cwd=str(workspace),
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-    # 2. Test lifecycle: start -> status -> stop -> status
-    log("Test 1: Starting service ('start')...")
-    res_start = run_cmd("start")
-    if res_start.returncode != 0:
-        fail(f"'start' failed with exit code {res_start.returncode}. Stderr: {res_start.stderr.strip()}")
-    if "SERVICE_STARTED" not in res_start.stdout:
-        fail("Expected 'SERVICE_STARTED' in output.")
+    # 2. Start service
+    log("Testing 'start' command...")
+    res2 = subprocess.run(["bash", str(script), "start"], cwd=str(workspace), capture_output=True, text=True)
+    if res2.returncode != 0:
+        fail(f"'start' failed with code {res2.returncode}: {res2.stderr.strip()}")
+    if "SERVICE_STARTED" not in res2.stdout:
+        fail("Missing 'SERVICE_STARTED' confirmation on start.")
     if not pid_file.exists():
-        fail("Expected 'service.pid' to be created upon start.")
+        fail("service.pid was not created after start.")
 
-    log("Test 2: Querying status when running ('status')...")
-    res_stat1 = run_cmd("status")
-    if res_stat1.returncode != 0:
-        fail(f"'status' failed with exit code {res_stat1.returncode}")
-    if "STATUS_RUNNING" not in res_stat1.stdout:
-        fail(f"Expected 'STATUS_RUNNING', got: '{res_stat1.stdout.strip()}'")
+    pid_str = pid_file.read_text(encoding="utf-8").strip()
 
-    log("Test 3: Stopping service ('stop')...")
-    res_stop = run_cmd("stop")
-    if res_stop.returncode != 0:
-        fail(f"'stop' failed with exit code {res_stop.returncode}")
-    if "SERVICE_STOPPED" not in res_stop.stdout:
-        fail("Expected 'SERVICE_STOPPED' in output.")
+    # 3. Status when running
+    log(f"Testing 'status' when running (PID: {pid_str})...")
+    res3 = subprocess.run(["bash", str(script), "status"], cwd=str(workspace), capture_output=True, text=True)
+    if res3.returncode != 0:
+        fail(f"Expected exit code 0 when running, got {res3.returncode}.")
+    if "RUNNING" not in res3.stdout or pid_str not in res3.stdout:
+        fail(f"Expected 'STATUS: RUNNING (pid={pid_str})', got: {res3.stdout.strip()}")
+
+    # 4. Duplicate start prevention
+    log("Testing duplicate 'start' prevention...")
+    res4 = subprocess.run(["bash", str(script), "start"], cwd=str(workspace), capture_output=True, text=True)
+    if res4.returncode == 0:
+        fail("Duplicate 'start' should fail with exit code 1 when service is already running.")
+
+    # 5. Stop service
+    log("Testing 'stop' command...")
+    res5 = subprocess.run(["bash", str(script), "stop"], cwd=str(workspace), capture_output=True, text=True)
+    if res5.returncode != 0:
+        fail(f"'stop' failed with code {res5.returncode}: {res5.stderr.strip()}")
+    if "SERVICE_STOPPED" not in res5.stdout:
+        fail("Missing 'SERVICE_STOPPED' confirmation on stop.")
     if pid_file.exists():
-        fail("Expected 'service.pid' to be removed upon stop.")
+        fail("service.pid was not deleted after stop.")
 
-    log("Test 4: Querying status when stopped ('status')...")
-    res_stat2 = run_cmd("status")
-    if res_stat2.returncode != 0:
-        fail(f"'status' failed with exit code {res_stat2.returncode}")
-    if "STATUS_STOPPED" not in res_stat2.stdout:
-        fail(f"Expected 'STATUS_STOPPED', got: '{res_stat2.stdout.strip()}'")
+    # 6. Status after stop
+    res6 = subprocess.run(["bash", str(script), "status"], cwd=str(workspace), capture_output=True, text=True)
+    if res6.returncode != 3:
+        fail(f"Expected exit code 3 after stop, got {res6.returncode}.")
 
-    # 3. Test help flags
-    log("Test 5: Checking grouped help flags ('--help' and '-h')...")
-    for h in ["--help", "-h", "help"]:
-        res_h = run_cmd(h)
-        if res_h.returncode != 0 or "USAGE:" not in res_h.stdout:
-            fail(f"Help flag '{h}' failed or did not print usage information.")
+    # 7. Stale PID file handling
+    log("Testing stale PID file detection and recovery...")
+    pid_file.write_text("999999\n", encoding="utf-8")  # Dead PID
+    res7 = subprocess.run(["bash", str(script), "status"], cwd=str(workspace), capture_output=True, text=True)
+    if res7.returncode != 2:
+        fail(f"Expected exit code 2 on stale PID file, got {res7.returncode}.")
+    if "STALE_PID" not in res7.stdout:
+        fail(f"Expected 'STATUS: STALE_PID' on dead PID, got: {res7.stdout.strip()}")
 
-    # 4. Test invalid action
-    log("Test 6: Checking fallback catch-all ('*) on invalid action...")
-    res_invalid = run_cmd("bogus_command")
-    if res_invalid.returncode == 0:
-        fail("Invalid action succeeded with exit code 0! Must terminate with exit code 1.")
+    # Start should recover from stale PID
+    res8 = subprocess.run(["bash", str(script), "start"], cwd=str(workspace), capture_output=True, text=True)
+    if res8.returncode != 0:
+        fail("Start should automatically recover from stale PID file.")
 
+    # Clean up background process
+    subprocess.run(["bash", str(script), "stop"], cwd=str(workspace), capture_output=True, text=True)
+
+    # 8. Help and Unknown commands
+    log("Testing help flags (-h, --help, help)...")
+    for h in ["-h", "--help", "help"]:
+        res_h = subprocess.run(["bash", str(script), h], cwd=str(workspace), capture_output=True, text=True)
+        if res_h.returncode != 0:
+            fail(f"Help flag '{h}' should exit 0.")
+
+    log("Testing wildcard catch-all for unknown command...")
+    res_unk = subprocess.run(["bash", str(script), "invalid_command_xyz"], cwd=str(workspace), capture_output=True, text=True)
+    if res_unk.returncode == 0:
+        fail("Unknown command should exit with non-zero exit code 1.")
+
+    log("Successfully verified command routing, PID lifecycle, stale recovery, and wildcard exit codes!")
     print("\n  [PASS] ALL COMMAND DISPATCHER ROUTES AND EXIT CODES VERIFIED.")
-    sys.exit(0)
 
 
 if __name__ == "__main__":
