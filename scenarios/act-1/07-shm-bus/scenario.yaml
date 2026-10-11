@@ -31,6 +31,6 @@ verification:
     - "Automatic unlinking of shared memory node upon termination"
 
 hints:
-  - "In Linux, '/dev/shm' is a tmpfs ramdisk providing near-instantaneous in-memory IPC."
-  - "Path to use: '/dev/shm/telemetry_bus_$$.dat'."
-  - "Always trap EXIT to remove files from '/dev/shm' so RAM is not leaked."
+  - "Diagnostic: Run 'mount | grep shm' and 'df -h /dev/shm' to inspect the kernel tmpfs mount. Use 'iostat -xz 1' to observe that disk-backed file writes generate physical storage queues while /dev/shm generates zero I/O."
+  - "Mechanism: In Linux, '/dev/shm' is an in-memory tmpfs filesystem mapped directly to system DRAM page caches. However, directory nodes in /dev/shm persist until deleted; failing to unlink them causes RAM leaks."
+  - "Blueprint: Relocate the telemetry stream buffer to '/dev/shm/telemetry_bus.dat', and register a POSIX 'trap ... EXIT' handler to guarantee the node is unlinked upon process termination."
