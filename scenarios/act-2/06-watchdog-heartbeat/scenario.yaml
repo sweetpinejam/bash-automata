@@ -34,6 +34,6 @@ verification:
     - "Heartbeat timestamp is successfully updated by the new instance"
 
 hints:
-  - "Read the timestamp from 'heartbeat.ts' and calculate: 'now=$(date +%s); staleness=$(( now - last_hb ))'."
-  - "If '(( staleness > 2 ))', send SIGTERM, sleep briefly, then ensure cleanup with 'kill -9'."
-  - "After removing the old PID file, launch the new daemon in the background and output 'WORKER_RESPAWNED'."
+  - "Diagnostic: Compare 'cat heartbeat.ts' against 'date +%s'. Notice that while the PID is still alive in the process table, the timestamp is older than 2 seconds because the daemon is frozen in deadlock."
+  - "Mechanism: Process existence (kill -0) only confirms liveness, not progress. A watchdog verifies active progress by monitoring heartbeat staleness ($(( $(date +%s) - last_hb )))."
+  - "Blueprint: If staleness exceeds MAX_STALENESS, terminate the frozen process (SIGTERM escalated to SIGKILL), remove the stale PID file, respawn the worker daemon in the background, and output WORKER_RESPAWNED."
