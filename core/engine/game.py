@@ -76,11 +76,9 @@ class InteractiveGame:
                 total_count = len(mod_scenarios)
 
                 if verified_count == total_count and total_count > 0:
-                    badge = UI.colorize(f"[{verified_count}/{total_count} DONE]", Colors.BRIGHT_GREEN, Colors.BOLD)
-                elif verified_count > 0:
-                    badge = UI.colorize(f"[{verified_count}/{total_count} IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
+                    badge = UI.colorize(f"[{verified_count}/{total_count} COMPLETE]", Colors.BRIGHT_GREEN, Colors.BOLD)
                 else:
-                    badge = UI.colorize(f"[{verified_count}/{total_count}]", Colors.DIM)
+                    badge = UI.colorize(f"[{verified_count}/{total_count} NOT COMPLETE]", Colors.DIM)
 
                 print(f"  [{idx}] {icon} {UI.colorize(title, Colors.BRIGHT_WHITE)} {badge} (Drills {start_ord:02d}-{end_ord:02d})")
 
@@ -118,13 +116,9 @@ class InteractiveGame:
                 rec = progress_map.get(s.id)
                 status_str = rec["status"] if rec else "unstarted"
                 if status_str == "verified":
-                    badge = UI.colorize("[VERIFIED]", Colors.BRIGHT_GREEN, Colors.BOLD)
-                elif status_str == "in_progress":
-                    badge = UI.colorize("[IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
-                elif status_str == "failed":
-                    badge = UI.colorize("[FAILED]", Colors.BRIGHT_RED, Colors.BOLD)
+                    badge = UI.colorize("[COMPLETE]", Colors.BRIGHT_GREEN, Colors.BOLD)
                 else:
-                    badge = UI.colorize("[UNSTARTED]", Colors.DIM)
+                    badge = UI.colorize("[NOT COMPLETE]", Colors.DIM)
 
                 print(f"  [{idx}] {badge} Drill {s.order:02d}: {s.title} ({s.id})")
 
@@ -178,13 +172,9 @@ class InteractiveGame:
                 rec = progress_map.get(s.id)
                 status_str = rec["status"] if rec else "unstarted"
                 if status_str == "verified":
-                    badge = UI.colorize("[VERIFIED]", Colors.BRIGHT_GREEN, Colors.BOLD)
-                elif status_str == "in_progress":
-                    badge = UI.colorize("[IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
-                elif status_str == "failed":
-                    badge = UI.colorize("[FAILED]", Colors.BRIGHT_RED, Colors.BOLD)
+                    badge = UI.colorize("[COMPLETE]", Colors.BRIGHT_GREEN, Colors.BOLD)
                 else:
-                    badge = UI.colorize("[UNSTARTED]", Colors.DIM)
+                    badge = UI.colorize("[NOT COMPLETE]", Colors.DIM)
 
                 print(f"  [{idx}] {badge} Act {s.act}: {s.title} ({s.id})")
 
@@ -214,13 +204,9 @@ class InteractiveGame:
             attempts = rec["attempts"] if rec else 0
 
             if status_str == "verified":
-                status_badge = UI.colorize("[VERIFIED / RESOLVED]", Colors.BRIGHT_GREEN, Colors.BOLD)
-            elif status_str == "in_progress":
-                status_badge = UI.colorize("[IN ACTIVE CRISIS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
-            elif status_str == "failed":
-                status_badge = UI.colorize("[CRISIS FAILED]", Colors.BRIGHT_RED, Colors.BOLD)
+                status_badge = UI.colorize("[COMPLETE]", Colors.BRIGHT_GREEN, Colors.BOLD)
             else:
-                status_badge = UI.colorize("[UNSTARTED]", Colors.DIM)
+                status_badge = UI.colorize("[NOT COMPLETE]", Colors.DIM)
 
             print("  " + UI.colorize(f"▶ MISSION: {scenario.title.upper()} (Act {scenario.act})", Colors.BRIGHT_CYAN, Colors.BOLD))
             print(f"  Status:       {status_badge}")

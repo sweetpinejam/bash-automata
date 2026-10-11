@@ -43,13 +43,9 @@ class AutomataRunner:
             attempts = str(rec["attempts"]) if rec else "0"
 
             if status_str == "verified":
-                status_styled = UI.colorize("[VERIFIED]", Colors.BRIGHT_GREEN, Colors.BOLD)
-            elif status_str == "in_progress":
-                status_styled = UI.colorize("[IN PROGRESS]", Colors.BRIGHT_YELLOW, Colors.BOLD)
-            elif status_str == "failed":
-                status_styled = UI.colorize("[FAILED]", Colors.BRIGHT_RED, Colors.BOLD)
+                status_styled = UI.colorize("[COMPLETE]", Colors.BRIGHT_GREEN, Colors.BOLD)
             else:
-                status_styled = UI.colorize("[UNSTARTED]", Colors.DIM)
+                status_styled = UI.colorize("[NOT COMPLETE]", Colors.DIM)
 
             rows.append([s.id, f"Act {s.act}", s.title, s.difficulty, status_styled, attempts])
 
@@ -60,12 +56,13 @@ class AutomataRunner:
         summary = self.state.get_summary()
         scenarios = self.registry.list_all()
         total_available = len(scenarios)
+        completed = summary['verified']
+        not_completed = max(0, total_available - completed)
 
         UI.heading("Command Center Status")
         print(f" Total Registered Scenarios: {UI.colorize(str(total_available), Colors.BRIGHT_WHITE, Colors.BOLD)}")
-        print(f" Verified & Resolved:        {UI.colorize(str(summary['verified']), Colors.BRIGHT_GREEN, Colors.BOLD)}")
-        print(f" Currently in Crisis/Work:   {UI.colorize(str(summary['in_progress']), Colors.BRIGHT_YELLOW, Colors.BOLD)}")
-        print(f" Failed Last Assertion:      {UI.colorize(str(summary['failed']), Colors.BRIGHT_RED, Colors.BOLD)}")
+        print(f" Complete:                   {UI.colorize(str(completed), Colors.BRIGHT_GREEN, Colors.BOLD)}")
+        print(f" Not Complete:               {UI.colorize(str(not_completed), Colors.DIM)}")
         print()
 
     def read_scenario(self, scenario_id: str) -> None:

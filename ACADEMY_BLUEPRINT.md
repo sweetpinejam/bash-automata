@@ -9,27 +9,37 @@
 
 Every script, scenario, and tool in this platform strictly adheres to these five governing laws:
 
-1. **The 15-Line Rule**:
-   Bash scripts must stay under 15 lines. If an operation requires dictionaries, complex arithmetic, heavy regex, or nested data structures, pipe the stream into Python.
-2. **The Stream Contract**:
-   Bash and Python communicate strictly via standard POSIX streams: `stdout` $\rightarrow$ `stdin`.
+1. **Traditional Bash Craftsmanship & Real Code Volume (Act 0)**:
+   Act 0 drills are not 1-line syntax diffs or toy quizzes. They are real, substantial Bash utilities (30–70 lines of automated shell logic per drill) where trainees practice traditional shell craft: robust argument parsing, recursive filesystem traversal, safe stream loops, parameter expansion string surgery, data transformation, functions, and signal traps.
+2. **The Stream Contract & Unix Tooling**:
+   Use real Linux tools (`curl`, `sqlite3`, `lsof`, `socat`, `/proc`, `tar`, `gzip`, `/dev/shm`) and real POSIX streams (`stdout` -> `stdin`). Toy Python mocks that simulate shell behavior are strictly forbidden—all simulations run real local processes and network sockets.
 3. **The Defensive Shell**:
-   Every Bash script begins with `set -euo pipefail`. Scripts must never silently continue on error or expand unbound variables.
+   Every production Bash script begins with `set -euo pipefail`. Scripts must never silently continue on error or expand unbound variables.
 4. **Zero-Pollution & Fast Execution**:
-   Work executes inside disposable sandboxes (`~/.automata/sandboxes/<id>/workspace`). Execution and verification must complete in under 2 seconds. Instant rollback (`automata reset`) takes under 2 seconds.
+   Work executes inside disposable sandboxes (`~/.automata/sandboxes/<id>/workspace`). Execution and verification complete in under 2 seconds. Instant rollback (`automata reset`) resets in under 2 seconds.
 5. **Zero External Dependencies**:
    The entire CLI engine, SQLite progress ledger, and adaptive sandbox drivers use the **Python 3.12 Standard Library only**.
+6. **Strictly Binary Progress Contract**:
+   Trainee progress everywhere across the platform—CLI tables, interactive menus, status summaries, and scenario headers—is strictly binary: `[COMPLETE]` (green) or `[NOT COMPLETE]` (dim). There are no intermediate or ambiguous badges (`IN PROGRESS`, `FAILED`, `UNSTARTED`).
 
 ---
 
 ## 2. Pedagogical Principles (The Mentor Contract)
 
-* **No Obsolete Syntax**: We do not teach archaic 1980s trivia, ancient `awk` gymnastics, or passive memorization. We teach modern, resilient Linux systems engineering.
-* **De-Mining Exercises**: Syntax is never taught in a vacuum. Every drill is a live production scenario (e.g., a broken automated cleanup bot, a leaking descriptor, or a silent deadlock).
+* **Deep Field Manuals (`lesson.md`)**:
+  Reading materials are exhaustive, in-depth guides designed for thorough self-paced study. Every `lesson.md` must include:
+  1. *Systems Mental Model*: How Bash tokenizes, interprets, expands, and executes under the hood.
+  2. *Syntax Anatomy & Variations*: Exhaustive breakdowns of parameter expansions, operators, and nuances.
+  3. *ASCII Architecture / Execution Flowcharts*: Visual representations of data flow, subshells, file descriptors, and pipes.
+  4. *Real-World Gotchas & Pitfalls*: Hidden traps (word-splitting, glob expansion, subshell variable loss, locale sorting, buffer stalls).
+  5. *Self-Assessment Checklist*: 4–5 conceptual checks the trainee must evaluate before writing code.
+  6. *Applied Production Scenario*: The systems engineering rationale for the drill.
+* **De-Mining Exercises with Substantial Implementation**:
+  Trainees don't just fix a quote or a parenthesis—they implement or refactor full, working utilities, automated bots, and fault-tolerant pipeline filters.
 * **The "Never Get Stuck" Rule**:
-  * Every lesson includes a **1-page Field Manual (`lesson.md`)** with reading references, mental models, and cheatsheets (`[1]`).
+  * Every lesson includes the deep **Field Manual (`lesson.md`)** (`[1]`).
   * Every lesson includes **progressive tactical hints (`[6]`)**.
-  * Every lesson includes a **targeted code blueprint & almost-answer (`almost_answer.md` / `[7]`)** providing syntax skeletons without spoiling the full sandbox script.
+  * Every lesson includes a **targeted code blueprint & almost-answer (`almost_answer.md` / `[7]`)** providing syntax skeletons and algorithmic templates without spoiling the complete solution.
   * Every lesson includes the **full reference working solution and post-mortem (`solution.sh` / `[8]`)**.
 
 ---
