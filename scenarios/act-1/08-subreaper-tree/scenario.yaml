@@ -31,6 +31,6 @@ verification:
     - "Zero orphaned rogue processes detected in 'ps aux' after teardown"
 
 hints:
-  - "In Unix, sending a signal to a negative PID 'kill -- -$PGID' broadcasts the signal to the ENTIRE Process Group."
-  - "To broadcast to your script's own process group: 'kill -TERM -- -$$'."
-  - "Use an EXIT trap: 'trap 'kill -TERM -- -$$ 2>/dev/null \|\| true' EXIT TERM INT'."
+  - "Diagnostic: Use 'pstree -p' or 'ps -eo pid,ppid,comm' to inspect child lineages. Notice that killing the immediate parent causes background children to be reparented to PPID 1 rather than terminating."
+  - "Mechanism: In Unix, signals sent to a single PID do not cascade down the process tree. When a parent exits, the kernel's 'forget_original_parent()' hands lingering children over to init/systemd."
+  - "Blueprint: Eradicate the process tree by signaling all child processes matching the target PPID using 'pkill -P \"$target_pid\"' before terminating the target itself, or broadcast to the negative process group ID."

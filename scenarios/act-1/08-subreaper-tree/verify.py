@@ -40,13 +40,16 @@ def main():
             f.unlink()
 
     log("Executing orchestrator workload lifecycle...")
-    res = subprocess.run(
-        ["bash", str(script)],
-        cwd=str(workspace),
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
+    try:
+        res = subprocess.run(
+            ["bash", str(script)],
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except subprocess.TimeoutExpired:
+        fail("orchestrator.sh timed out or lingering processes blocked output streams.")
 
     if res.returncode != 0:
         fail(f"orchestrator.sh failed with exit code {res.returncode}. Stderr: {res.stderr.strip()}")
