@@ -34,6 +34,6 @@ verification:
     - "Zero torn or interleaved multi-line rows in metrics_dump.tsv"
 
 hints:
-  - "Open a dedicated lock file descriptor at the start of the script: 'exec 200>\"$LOCK_FILE\"'."
-  - "Before writing each 3-line record, acquire the exclusive lock with 'flock -x 200'."
-  - "After writing the record, release the lock with 'flock -u 200'."
+  - "Diagnostic Phase: Inspect the generated 'metrics_dump.tsv' file using grep or awk. Notice that while individual lines may be written cleanly, multiple concurrent workers interleave their 3-line record blocks (START_ROW, worker payload, END_ROW), causing torn records."
+  - "Architectural Pattern: Linux kernel advisory locking ('flock') provides mutual exclusion across independent processes. Avoid locking the output file itself, which risks metadata races or open mode conflicts; instead, maintain a separate dedicated lock file descriptor."
+  - "Critical Section Blueprint: Open a dedicated high-numbered file descriptor for the lock file. Before emitting each multi-line record batch, acquire an exclusive lock ('-x') on that descriptor. Immediately release the lock ('-u') once the entire record is written, and close the descriptor upon completion."
