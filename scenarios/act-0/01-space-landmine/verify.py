@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.01: The Space Landmine."""
+"""State-driven verification harness for Drill 0.01: The Space Landmine."""
 import os
 import subprocess
 import sys
@@ -24,53 +24,99 @@ def main():
     if not cleaner_sh.exists():
         fail("Missing required script: cleaner.sh")
 
-    content = cleaner_sh.read_text(encoding="utf-8")
-    active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
+    # Static Syntax Check
+    syntax_check = subprocess.run(["bash", "-n", str(cleaner_sh)], capture_output=True, text=True)
+    if syntax_check.returncode != 0:
+        fail(f"cleaner.sh has syntax errors: {syntax_check.stderr.strip()}")
 
-    # Static audit
-    log("Auditing quoting in cleaner.sh...")
-    if '"$DEST_DIR"' not in active_code:
-        fail("DEST_DIR must be enclosed in double quotes: \"$DEST_DIR\"")
-    if '"$SRC_DIR"' not in active_code:
-        fail("SRC_DIR must be enclosed in double quotes: \"$SRC_DIR\"/*")
+    # Test 1: Missing Arguments Validation
+    log("Testing CLI argument validation (missing arguments)...")
+    res_no_args = subprocess.run(
+        ["bash", str(cleaner_sh)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+    )
+    if res_no_args.returncode == 0:
+        fail("cleaner.sh must exit 1 when invoked with missing arguments.")
 
-    log("Executing automated cleanup sweep...")
-    try:
-        res = subprocess.run(
-            ["bash", str(cleaner_sh)],
-            cwd=str(workspace),
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-    except Exception as e:
-        fail(f"Execution exception: {e}")
+    # Test 2: Non-existent Source Directory
+    log("Testing non-existent source directory check...")
+    res_bad_src = subprocess.run(
+        ["bash", str(cleaner_sh), "non_existent_directory_xyz", "dest_dir"],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+    )
+    if res_bad_src.returncode == 0:
+        fail("cleaner.sh must exit 1 when source directory does not exist.")
 
-    if res.returncode != 0:
-        fail(f"cleaner.sh failed (exit code {res.returncode}). Stderr: {res.stderr.strip()}")
+    # Test 3: Dry-Run Mode
+    log("Testing --dry-run mode execution...")
+    res_dry = subprocess.run(
+        ["bash", str(cleaner_sh), "--dry-run", str(src_dir), str(dest_dir)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res_dry.returncode != 0:
+        fail(f"cleaner.sh --dry-run failed with code {res_dry.returncode}: {res_dry.stderr.strip()}")
 
-    if "SWEEP_COMPLETE" not in res.stdout:
-        fail("cleaner.sh did not complete cleanly.")
+    if "[DRY_RUN]" not in res_dry.stdout:
+        fail("cleaner.sh --dry-run did not emit '[DRY_RUN]' notices.")
 
-    log("Verifying filesystem state...")
+    if "dry_run=1" not in res_dry.stdout:
+        fail("cleaner.sh --dry-run did not report 'dry_run=1' in summary output.")
+
+    if dest_dir.exists():
+        fail("cleaner.sh --dry-run must NOT create the destination directory.")
+
+    # Ensure source files are untouched during dry run
+    source_files_dry = list(src_dir.rglob("*"))
+    source_regular_files = [f for f in source_files_dry if f.is_file()]
+    if len(source_regular_files) < 3:
+        fail("cleaner.sh --dry-run modified or deleted files in the source directory.")
+
+    # Test 4: Live Archival Sweep
+    log("Testing live archival sweep...")
+    res_live = subprocess.run(
+        ["bash", str(cleaner_sh), str(src_dir), str(dest_dir)],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res_live.returncode != 0:
+        fail(f"cleaner.sh live run failed with code {res_live.returncode}: {res_live.stderr.strip()}")
+
+    if "SWEEP_COMPLETE:" not in res_live.stdout or "dry_run=0" not in res_live.stdout:
+        fail("cleaner.sh live run did not report valid SWEEP_COMPLETE summary.")
+
     if not dest_dir.exists():
         fail("Destination directory 'archived runs' was not created.")
 
-    expected_files = ["run telemetry.log", "crash dump.txt"]
+    manifest_file = dest_dir / "manifest.tsv"
+    if not manifest_file.exists():
+        fail("Missing required 'manifest.tsv' inside destination directory.")
+
+    manifest_content = manifest_file.read_text(encoding="utf-8")
+
+    expected_files = ["run telemetry.log", "crash dump.txt", "build report.log"]
     for fname in expected_files:
         archived_file = dest_dir / fname
         if not archived_file.exists():
-            fail(f"File '{fname}' was not moved into 'archived runs'.")
+            fail(f"File '{fname}' was not moved into '{dest_dir.name}'.")
+        if fname not in manifest_content:
+            fail(f"File '{fname}' is missing from manifest.tsv.")
 
-    # Ensure source directory is clean
-    remaining = list(src_dir.iterdir())
-    if remaining:
-        fail(f"Source directory still contains {len(remaining)} un-swept files.")
+    # Verify source directory contains no leftover regular files
+    remaining_regular = [f for f in src_dir.rglob("*") if f.is_file()]
+    if remaining_regular:
+        fail(f"Source directory still contains {len(remaining_regular)} un-swept regular files.")
 
-    log(f"Successfully archived {len(expected_files)} files containing space characters.")
-    log("Zero Word Splitting errors detected.")
-    print("ALL STATE ASSERTIONS PASSED")
-    sys.exit(0)
+    log("Successfully verified argument safety, dry-run protection, and whitespace resilience!")
+    print("\n  [PASS] ALL WHITESPACE & WORD-SPLITTING CHECKS VERIFIED SUCCESSFULLY.")
 
 
 if __name__ == "__main__":

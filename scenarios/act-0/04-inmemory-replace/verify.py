@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.04: Pure In-Memory Replace."""
+"""Fast state-driven verification for Drill 0.04: Pure In-Memory Replace."""
+import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -18,27 +20,34 @@ def fail(msg: str):
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
     script = workspace / "sanitizer.sh"
-    out_file = workspace / "events.sanitized"
+    raw_file = workspace / "events.raw"
+    sanitized_file = workspace / "events.sanitized"
+    metrics_file = workspace / "audit_metrics.json"
 
     if not script.exists():
         fail("Missing required script: sanitizer.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"sanitizer.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit: strictly no external tools for string manipulation
+    log("Auditing pure shell in-memory string replacement in sanitizer.sh...")
     content = script.read_text(encoding="utf-8")
     active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
 
-    # 1. Static audit
-    log("Auditing pure shell pattern substitution in sanitizer.sh...")
-    for banned in ["sed", "awk", "perl", "python", "tr"]:
-        if banned in active_code:
-            fail(f"Prohibited external command '{banned}' detected. Use native '${{VAR//pattern/replacement}}'.")
+    for banned in ["sed", "awk", "cut", "perl", "python", "tr"]:
+        if re.search(r"\b" + re.escape(banned) + r"\b", active_code):
+            fail(f"Prohibited external command '{banned}' detected. Use native parameter expansions (${{VAR//...}}).")
 
     if "//" not in active_code:
-        fail("Missing parameter pattern replacement operator '//' (e.g. ${line//dev.internal/prod.external})")
+        fail("Missing in-memory pattern replacement syntax (${line//.../...}).")
 
-    # 2. Execution
-    log("Running automated sanitizer...")
+    # Run sanitizer.sh
+    log("Executing pure in-memory stream sanitizer...")
     res = subprocess.run(
-        ["bash", str(script)],
+        ["bash", str(script), str(raw_file), str(sanitized_file)],
         cwd=str(workspace),
         capture_output=True,
         text=True,
@@ -47,30 +56,58 @@ def main():
     if res.returncode != 0:
         fail(f"sanitizer.sh failed with exit code {res.returncode}. Stderr: {res.stderr.strip()}")
 
-    if "SANITIZATION_COMPLETE" not in res.stdout:
-        fail("sanitizer.sh did not complete cleanly.")
+    if "SANITIZATION_COMPLETE:" not in res.stdout:
+        fail("sanitizer.sh did not emit expected 'SANITIZATION_COMPLETE:' summary.")
 
-    # 3. Validation
-    if not out_file.exists():
-        fail("Output file 'events.sanitized' was not generated.")
+    if not sanitized_file.exists():
+        fail("Sanitized output file 'events.sanitized' was not created.")
 
-    lines = out_file.read_text(encoding="utf-8").strip().splitlines()
-    if len(lines) != 3:
-        fail(f"Expected 3 sanitized records, got {len(lines)}")
+    # Validate sanitized contents
+    log("Verifying scrubbed log contents...")
+    lines = sanitized_file.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 7:
+        fail(f"Expected 7 sanitized lines (including non-newline EOF line), found {len(lines)}.")
 
-    for idx, line in enumerate(lines, 1):
-        if "dev.internal" in line:
-            fail(f"Line {idx} still contains un-sanitized internal domain: '{line}'")
-        if "prod.external" not in line:
-            fail(f"Line {idx} does not contain expected target domain 'prod.external'")
-        if "SECRET_" in line:
-            fail(f"Line {idx} still contains un-redacted secret token: '{line}'")
-        if "REDACTED_" not in line:
-            fail(f"Line {idx} does not contain redacted secret tag 'REDACTED_'")
+    full_text = "\n".join(lines)
+    if "dev.internal" in full_text:
+        fail("Security leak: 'dev.internal' was not completely replaced.")
+    if "prod.external" not in full_text:
+        fail("Domain substitution failed: 'prod.external' not found.")
+    if "SECRET_" in full_text:
+        fail("Security leak: 'SECRET_' was not completely replaced.")
+    if "REDACTED_" not in full_text:
+        fail("Token redaction failed: 'REDACTED_' not found.")
+    if "?session=" in full_text:
+        fail("Suffix scrubbing failed: '?session=' query parameter was not stripped.")
 
-    log("Verified all domains updated to prod.external and secrets redacted.")
-    print("\n  [PASS] ALL RECORDS SANITIZED IN-MEMORY WITHOUT SPAWNING SED.")
-    sys.exit(0)
+    # Check prefix replacement
+    prefix_trace = [l for l in lines if l.startswith("[TRACE]:")]
+    if len(prefix_trace) != 2:
+        fail(f"Expected 2 lines with '[TRACE]:' prefix replacement, found {len(prefix_trace)}.")
+
+    # Check final line was preserved and transformed
+    if not any("sweep task completed token=REDACTED_9999" in l for l in lines):
+        fail("Stream read error: Final line without trailing newline was dropped or corrupted.")
+
+    # Validate audit_metrics.json
+    log("Verifying audit_metrics.json...")
+    if not metrics_file.exists():
+        fail("Missing required 'audit_metrics.json' file.")
+
+    try:
+        metrics = json.loads(metrics_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        fail(f"Invalid JSON in audit_metrics.json: {e}")
+
+    if metrics.get("status") != "SANITIZED":
+        fail(f"Expected status 'SANITIZED', got: {metrics.get('status')}")
+    if metrics.get("total_lines") != 7:
+        fail(f"Expected total_lines=7, got: {metrics.get('total_lines')}")
+    if metrics.get("lines_modified") != 6:
+        fail(f"Expected lines_modified=6, got: {metrics.get('lines_modified')}")
+
+    log("Successfully verified in-memory stream replacement, EOF safety, and audit JSON metrics!")
+    print("\n  [PASS] PURE IN-MEMORY STREAM SANITIZATION FULLY VERIFIED.")
 
 
 if __name__ == "__main__":

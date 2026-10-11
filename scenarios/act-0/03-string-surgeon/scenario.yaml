@@ -1,7 +1,7 @@
 id: "act-0-03-string-surgeon"
 act: 0
 order: 3
-title: "The String Surgeon"
+title: "The String Surgeon (Artifact Sorter)"
 difficulty: "Beginner"
 timeout_seconds: 15
 
@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated artifact pipeline receives deployment packages in 'incoming/'. The legacy sorting script relies on spawning slow external commands ('basename', 'dirname', 'cut') which thrash subprocess limits. We need a pure in-memory shell solution."
-  objective: "Refactor 'sorter.sh' using native Bash parameter expansion: extract the filename using '${VAR##*/}' and the extension using '${VAR##*.}' to sort incoming artifacts into 'categorized/<ext>/<filename>' without calling external binaries."
+  situation: "An automated CI/CD artifact pipeline chokes CPU and breaches container PID limits because its sorting script forks external binaries ('basename', 'dirname', 'cut', 'sed') for every incoming package."
+  objective: "Build a high-performance in-memory artifact cataloguer in 'sorter.sh' using pure Bash parameter expansion (${VAR##*/}, ${VAR%/*}, ${VAR%.*}). Handle compound extensions (.tar.gz, .backup.sql) and files without extensions, sort them into categorized directories, and generate 'catalog.tsv'."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,12 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'sorter.sh' executes with exit code 0"
-    - "No external subshell processes ('basename', 'dirname', 'cut', 'sed') spawned"
-    - "Files correctly moved to 'categorized/gz/', 'categorized/js/', and 'categorized/sql/'"
-    - "Original files preserved and properly sorted"
+    - "Zero banned subshell utilities (basename, dirname, cut, sed, awk, tr) used"
+    - "Correctly extracts compound extensions (tar.gz, backup.sql) and no-extension binaries (none)"
+    - "Moves artifacts into categorized subfolders (archives, configs, databases, binaries)"
+    - "Generates 'catalog.tsv' with exact metadata fields: BASENAME, CATEGORY, STEM, EXT"
 
 hints:
-  - "To strip everything up to the last slash (getting the basename): '${filepath##*/}'."
-  - "To strip everything up to the last dot (getting the extension): '${filename##*.}'."
-  - "To strip everything after the first dot: '${filename%%.*}'."
+  - "Strip directory prefix: filename=\"${filepath##*/}\"."
+  - "Extract compound extensions with case: *.tar.gz) ext=\"tar.gz\"; stem=\"${filename%.tar.gz}\" ;;."
+  - "Extract standard extension: ext=\"${filename##*.}\"; stem=\"${filename%.*}\"."

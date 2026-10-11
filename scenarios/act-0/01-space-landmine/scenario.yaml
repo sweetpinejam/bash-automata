@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated CI/CD cleanup bot sweeps build artifacts from 'deploy artifacts' into 'archived runs'. Because the path variables are unquoted, Bash splits on the space delimiter, crashing the automated sweep."
-  objective: "Harden 'cleaner.sh' by properly double-quoting variables to prevent Word Splitting, allowing the automated archival sweep to complete with zero errors."
+  situation: "An automated CI/CD cleanup bot sweeps build artifacts across directories containing spaces and nested subdirectories. Unquoted variables cause Word Splitting, causing file loss and crashing sweeps."
+  objective: "Build a robust CLI archival utility in 'cleaner.sh' that supports '--dry-run', validates arguments, traverses directories without word splitting, calculates file count and bytes, and records a tab-separated manifest."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,12 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'cleaner.sh' executes with exit code 0"
-    - "'archived runs' directory is created"
-    - "All artifacts (including files with spaces) are successfully moved into 'archived runs'"
-    - "Source directory 'deploy artifacts' is cleared"
+    - "Rejects invalid arguments and non-existent directories with exit code 1"
+    - "Executes '--dry-run' without moving files or creating destination folders"
+    - "Safely moves all nested files with spaces and generates 'manifest.tsv'"
+    - "Outputs structured summary: 'SWEEP_COMPLETE: files=<N>, bytes=<B>, dry_run=<0|1>'"
 
 hints:
-  - "In Bash, unquoted variables expand and then get split by whitespace into separate arguments."
-  - "Always enclose variable expansions in double quotes: \"$SRC_DIR\" and \"$DEST_DIR\"."
-  - "When using wildcards with quoted directories: \"$SRC_DIR\"/* (the wildcard * stays outside the quotes)."
+  - "Parse '--dry-run' using 'if [[ \"${1:-}\" == \"--dry-run\" ]]; then DRY_RUN=1; shift; fi'."
+  - "Scan files safely using 'while IFS= read -r -d \"\" file; do ... done < <(find \"$SRC_DIR\" -type f -print0)'."
+  - "Keep wildcards and parameter expansions quoted: \"$DEST_DIR\", \"$file\", \"${file##*/}\"."

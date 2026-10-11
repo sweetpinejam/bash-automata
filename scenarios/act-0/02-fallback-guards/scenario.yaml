@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated deployment injector ('env_injector.sh') generates a runtime configuration file (.env). If optional variables are omitted, it crashes under 'set -u' instead of providing sane defaults. Furthermore, it fails to enforce mandatory secrets."
-  objective: "Refactor 'env_injector.sh' using Bash parameter expansion: provide default fallbacks for PORT (default: '8080') and DB_HOST (default: 'localhost') using '${VAR:-default}', and guard API_SECRET using '${VAR:?API_SECRET is required}'."
+  situation: "An automated deployment injector ('env_injector.sh') generates runtime configuration. Missing optional variables cause crashes under 'set -u', while missing secrets lead to silent corruption. Sensitive tokens are accidentally leaked in logs."
+  objective: "Build a production environment compiler in 'env_injector.sh': apply parameter expansion fallbacks (${VAR:-def}), assert mandatory secrets (${VAR:?err}), derive alternate variables (${VAR:+alt}), enforce numeric port bounds, create files with 0600 permissions, and mask secrets in logs."
 
 files:
   workspace_dir: "workspace"
@@ -24,13 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'env_injector.sh' sets PORT to 8080 when PORT is unset"
-    - "'env_injector.sh' sets DB_HOST to localhost when DB_HOST is unset"
-    - "'env_injector.sh' preserves custom PORT and DB_HOST when provided"
-    - "'env_injector.sh' exits with non-zero error when API_SECRET is unset"
-    - "Generates valid .env file containing expected key-values"
+    - "Aborts with non-zero exit code if API_SECRET or CLUSTER_NAME is missing"
+    - "Rejects port values outside 1024..65535"
+    - "Supplies defaults for PORT, DB_HOST, DB_PORT, LOG_LEVEL, and TIMEOUT_SECONDS"
+    - "Derives METRICS_ENABLED via alternate parameter expansion"
+    - "Generates .env.runtime with 0600 permissions and masks secrets in console logs"
 
 hints:
-  - "To supply a default when a variable is unset or empty, use: '${VAR:-default}'."
-  - "To abort execution with an error when a mandatory variable is missing, use: '${VAR:?error_message}'."
-  - "Remember to quote your expansions: PORT=\"${PORT:-8080}\"."
+  - "Default fallback syntax: PORT=\"${PORT:-8080}\", DB_HOST=\"${DB_HOST:-127.0.0.1}\"."
+  - "Mandatory guard assertion: : \"${API_SECRET:?API_SECRET is required}\"."
+  - "Alternate value derivation: METRICS_ENABLED=\"${PROMETHEUS_ENDPOINT:+true}\"; METRICS_ENABLED=\"${METRICS_ENABLED:-false}\"."

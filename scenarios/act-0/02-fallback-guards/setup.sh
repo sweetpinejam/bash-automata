@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Remove any pre-existing .env in workspace
-rm -f .env
-chmod +x env_injector.sh
+WORKSPACE="${AUTOMATA_WORKSPACE:-$(pwd)}"
+
+rm -f "$WORKSPACE/.env" "$WORKSPACE/.env.runtime"
+if [[ -f "$WORKSPACE/env_injector.sh" ]]; then
+    chmod +x "$WORKSPACE/env_injector.sh"
+fi
+
+echo "[SETUP COMPLETE] Environment reset for Drill 0.02"

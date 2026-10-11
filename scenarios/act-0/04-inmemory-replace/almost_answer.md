@@ -1,15 +1,39 @@
-# Code Blueprint: In-Memory Global String Replacement
+# Code Blueprint & Almost-Answer: Pure In-Memory Replace
 
-Perform in-place text replacement within variables without invoking external tools like `sed` or `awk`:
+If you need structural syntax guidance to complete `sanitizer.sh`:
 
+### 1. In-Memory Replacements Inside the Stream Loop
 ```bash
-# Blueprint Pattern:
-# Replace first match:
-result="${var/search_pattern/replacement}"
+while IFS= read -r line || [[ -n "$line" ]]; do
+    TOTAL_LINES=$((TOTAL_LINES + 1))
+    original="$line"
 
-# Replace ALL occurrences globally:
-sanitized="${line//dev.internal/prod.external}"
-sanitized="${sanitized//SECRET_/REDACTED_}"
+    # Prefix replacement
+    line="${line/#DEBUG:/[TRACE]:}"
+
+    # Global replacements
+    line="${line//dev.internal/prod.external}"
+    line="${line//SECRET_/REDACTED_}"
+
+    # Suffix scrubbing (escape question mark)
+    line="${line/%\?session=*/}"
+
+    if [[ "$line" != "$original" ]]; then
+        MODIFIED_LINES=$((MODIFIED_LINES + 1))
+    fi
+
+    echo "$line" >> "$OUTPUT_FILE"
+done < "$INPUT_FILE"
 ```
 
-> **Key Rule**: Single slash (`/pattern/replacement`) replaces the first match; double slash (`//pattern/replacement`) replaces every occurrence in the string.
+### 2. Generating Audit JSON
+```bash
+cat <<EOF > "audit_metrics.json"
+{
+  "status": "SANITIZED",
+  "total_lines": $TOTAL_LINES,
+  "lines_modified": $MODIFIED_LINES,
+  "engine": "bash_in_memory"
+}
+EOF
+```

@@ -1,19 +1,38 @@
-# Code Blueprint: In-Memory Prefix & Suffix Stripping
+# Code Blueprint & Almost-Answer: The String Surgeon
 
-Use Bash native prefix and suffix pattern removal operators instead of slow subshells (`basename`, `cut`, `sed`):
+If you are stuck on pure in-memory string surgery in `sorter.sh`:
 
+### 1. Stripping Directory Prefix
 ```bash
-# Blueprint Pattern:
-# Strip longest matching prefix (strips directory path up to the last '/'):
+# Gets only the filename without calling basename
 filename="${filepath##*/}"
-
-# Strip longest matching prefix up to the last dot (gets the final extension):
-ext="${filename##*.}"
-
-# Note: If there is no dot in the filename, ext will equal filename,
-# or you can test: [[ "$filename" == *.* ]]
 ```
 
-> **Key Rule**:
-> - `#` = strip shortest prefix, `##` = strip longest prefix
-> - `%` = strip shortest suffix, `%%` = strip longest suffix
+### 2. Compound Extension Matching with `case`
+```bash
+case "$filename" in
+    *.tar.gz)     ext="tar.gz"; stem="${filename%.tar.gz}" ;;
+    *.tar.bz2)    ext="tar.bz2"; stem="${filename%.tar.bz2}" ;;
+    *.backup.sql) ext="backup.sql"; stem="${filename%.backup.sql}" ;;
+    *.*)          ext="${filename##*.}"; stem="${filename%.*}" ;;
+    *)            ext="none"; stem="$filename" ;;
+esac
+```
+
+### 3. Category Routing
+```bash
+case "$ext" in
+    tar.gz|tar.bz2|tar.xz|zip|gz) category="archives" ;;
+    json|yaml|yml|toml|conf)      category="configs" ;;
+    sql|backup.sql)               category="databases" ;;
+    bin|sh|none)                  category="binaries" ;;
+    *)                            category="miscellaneous" ;;
+esac
+```
+
+### 4. Writing Catalog & Moving File
+```bash
+mkdir -p "$OUTPUT_DIR/$category"
+mv "$filepath" "$OUTPUT_DIR/$category/$filename"
+printf "%s\t%s\t%s\t%s\n" "$filename" "$category" "$stem" "$ext" >> "$OUTPUT_DIR/catalog.tsv"
+```
