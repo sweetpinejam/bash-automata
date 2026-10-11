@@ -29,7 +29,6 @@ verification:
     - "'supervisor.sh' exits 0 cleanly"
 
 hints:
-  - "When a child process terminates, it remains in state 'Z' (Zombie / defunct) until its parent calls 'wait'."
-  - "To wait for any single child to exit: 'wait -n'."
-  - "Or trap child termination signals: 'trap 'wait -n 2>/dev/null \|\| true' CHLD'."
-  - "To inspect zombies in Linux: 'ps -eo pid,stat,comm | grep -w Z'."
+  - "Diagnostic: When child tasks complete in the background, check 'ps -eo pid,ppid,stat,comm | grep -w Z' or '/proc/$PID/status' to observe Zombie ('Z' / defunct) accumulation in the process table."
+  - "Mechanism: A terminating process cannot free its Process Control Block (PCB) until its parent collects its exit status via 'wait(2)'. In Bash, sleeping instead of collecting child exit status causes zombie leaks."
+  - "Blueprint: Replace the arbitrary 'sleep' synchronization delay with the POSIX child reaping primitive 'wait', which blocks until all child worker tasks terminate and clears their kernel table entries."
