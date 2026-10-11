@@ -34,6 +34,6 @@ verification:
     - "No lingering orphan processes detected in kernel table"
 
 hints:
-  - "Spawn the target command in background: '\"$@\" & cmd_pid=$!'."
-  - "Spawn a parallel sleep timer in background: '( sleep \"$timeout\"; kill -TERM \"$cmd_pid\" ) & timer_pid=$!'."
-  - "Use 'wait \"$cmd_pid\"' and ensure you kill the timer if the command finished early."
+  - "Diagnostic Phase: Inspect process tree behavior with 'ps -ef' or 'pgrep -a python3'. Notice that when upstream hangs, synchronous execution blocks the main shell thread forever, preventing any subsequent logic or health checks from running."
+  - "Architectural Pattern: Implement dual-subshell concurrency. Fork the workload into the background using '&' and record its PID with '$!'. In parallel, fork a watchdog timer subshell that sleeps for the timeout threshold and sends an escalating signal sequence (SIGTERM followed by SIGKILL) to the worker PID."
+  - "Synchronization Blueprint: The coordinator shell must wait on the worker PID. If the worker exits before the watchdog expires, cancel the watchdog subshell and reap it immediately to prevent lingering sleep processes. If the watchdog interrupts the worker, return standard POSIX timeout exit code 124."
