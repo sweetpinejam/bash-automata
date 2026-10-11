@@ -34,6 +34,6 @@ verification:
     - "session token (sess_vault_998877) is captured in session.out"
 
 hints:
-  - "Launch the coprocess using: 'coproc AUTH { python3 security_cli.py; }'."
-  - "Read stdout from the coprocess using 'read -r line <&\"${AUTH[0]}\"'."
-  - "Send stdin to the coprocess using 'echo \"...\" >&\"${AUTH[1]}\"'."
+  - "Diagnostic: Trace pipeline syscalls with 'strace -e pipe,read,write -f bash auth_bot.sh'. Notice that a standard pipeline only opens one pipe, preventing the shell from receiving prompts from the downstream tool."
+  - "Mechanism: Interactive two-way protocols require paired full-duplex pipes. In Bash, the 'coproc' builtin creates two linked kernel pipes connected to child stdin and stdout."
+  - "Blueprint: Launch a named coprocess 'coproc AUTH { command; }'. Read prompts from the read descriptor (index 0) using '<&', write responses to the write descriptor (index 1) using '>&', and reap with wait."
