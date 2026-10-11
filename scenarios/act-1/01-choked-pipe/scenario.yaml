@@ -11,8 +11,8 @@ limits:
   pids_limit: 50
 
 briefing:
-  situation: "Telemetry data is flooding in at 5,000 metrics/sec. The unbuffered direct pipe between Bash and Python causes blocking stalls, latency spikes, and buffer overruns."
-  objective: "Refactor the Bash ingest pipeline and Python consumer to use an asynchronous named pipe (mkfifo) and chunked binary batching (sys.stdin.buffer) with zero record loss and RSS < 64MB."
+  situation: "High-frequency telemetry data is flooding into the ingest forwarder at 10,000 metrics/sec. The synchronous pipe between Bash and Python causes 64KB kernel buffer saturation, upstream write stalls, latency spikes, and severe packet loss."
+  objective: "Refactor the Bash ingest forwarder ('ingest.sh') to decouple ingestion using an asynchronous named pipe ('mkfifo') and background worker lifecycle management. Guarantee zero data loss across high-throughput bursts while maintaining peak RSS under 64MB."
 
 files:
   workspace_dir: "workspace"
@@ -27,12 +27,11 @@ verification:
   chaos_command: ""
   pass_criteria:
     - "Named pipe (FIFO) correctly created and unlinked on exit"
-    - "Zero records lost across high-throughput telemetry stream"
+    - "Zero records lost across high-throughput telemetry stream (25,000 records)"
     - "Peak resident memory (RSS) stays strictly under 64MB"
-    - "Graceful shutdown with zero orphan processes or leaking descriptors"
+    - "Graceful shutdown with zero orphan processes or leaking FIFO nodes"
 
 hints:
-  - "Synchronous pipes (cat | python3) block when the Python consumer pauses or garbage-collects."
-  - "Decouple stream ingestion using a named pipe: 'FIFO=/tmp/stream_$$.fifo; mkfifo \"$FIFO\"'."
-  - "Always trap signals to unlink temporary pipes: 'trap '\''rm -f \"$FIFO\"'\'' EXIT INT TERM'."
-  - "In Python, read binary chunks using 'with open(FIFO, \"rb\") as f: f.readinto(buffer)' instead of line decoding."
+  - "Inspect pipe blocking using 'ls -l /proc/$PID/fd' and 'cat /proc/sys/fs/pipe-max-size'. When the 64KB kernel circular buffer saturates, the upstream producer enters the uninterruptible 'D' sleep state waiting on write(2)."
+  - "Synchronous pipes ('cmd1 | cmd2') couple process execution to a single shared buffer. Decoupling requires a Named Pipe ('mkfifo'), which creates a dedicated filesystem node that can be consumed by an independent background process."
+  - "Remember the POSIX FIFO open rule: opening a named pipe for writing blocks until a reader is attached. Spawn your background consumer first ('consumer < fifo &'), stream the input into the FIFO, and wait for the consumer PID."

@@ -97,6 +97,10 @@ def main():
     if processed != target_count:
         fail(f"Data loss detected: Expected {target_count} records, but consumer processed {processed}.")
 
+    leaked_fifos = list(workspace.glob("*.fifo"))
+    if leaked_fifos:
+        fail(f"FIFO leak detected! Found leftover FIFO special files on disk: {[f.name for f in leaked_fifos]}")
+
     log("Zero records lost during high-throughput burst.")
     log("Memory and process lifecycle assertions verified.")
     print("ALL STATE ASSERTIONS PASSED")
