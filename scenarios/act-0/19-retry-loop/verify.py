@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.19: The Exponential Backoff Retry Loop."""
+"""State-driven verification for Drill 0.19: The Exponential Backoff Retry Loop."""
+import json
 import os
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -15,71 +18,171 @@ def fail(msg: str):
     sys.exit(1)
 
 
+def ensure_daemon(workspace: Path) -> int:
+    port_file = workspace / "daemon_port.txt"
+    pid_file = workspace / "daemon.pid"
+
+    # Check if existing daemon is alive
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text(encoding="utf-8").strip())
+            os.kill(pid, 0)
+            if port_file.exists():
+                return int(port_file.read_text(encoding="utf-8").strip())
+        except (ValueError, OSError):
+            pass
+
+    # Start new daemon
+    daemon_script = workspace / "health_daemon.py"
+    if not daemon_script.exists():
+        fail("health_daemon.py not found in workspace.")
+
+    proc = subprocess.Popen(
+        [sys.executable, str(daemon_script), "--ready-after", "3", "--port-file", str(port_file)],
+        cwd=str(workspace),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    pid_file.write_text(f"{proc.pid}\n", encoding="utf-8")
+
+    for _ in range(20):
+        time.sleep(0.1)
+        if port_file.exists():
+            try:
+                return int(port_file.read_text(encoding="utf-8").strip())
+            except ValueError:
+                pass
+    fail("Failed to initialize local health daemon on ephemeral port.")
+
+
+def cleanup_daemon(workspace: Path):
+    pid_file = workspace / "daemon.pid"
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text(encoding="utf-8").strip())
+            os.kill(pid, signal.SIGTERM)
+        except (ValueError, OSError):
+            pass
+        pid_file.unlink(missing_ok=True)
+    (workspace / "daemon_port.txt").unlink(missing_ok=True)
+
+
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
-    script = workspace / "probe.sh"
-    mock_service = workspace / "mock_service.sh"
-    counter_tmp = Path("/tmp/mock_service_call_count.tmp")
+    probe_sh = workspace / "probe.sh"
+    log_file = workspace / "probe_attempts.log"
+    summary_file = workspace / "probe_summary.json"
 
-    if not script.exists():
+    if not probe_sh.exists():
         fail("Missing required script: probe.sh")
 
-    content = script.read_text(encoding="utf-8")
-    active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
+    content = probe_sh.read_text(encoding="utf-8")
+    code_lines = [l for l in content.splitlines() if not l.strip().startswith("#")]
+    active_code = "\n".join(code_lines)
 
-    # 1. Static audit
-    log("Auditing retry loop and exponential backoff syntax...")
-    if "while " not in active_code:
-        fail("Missing 'while' loop construct for retries.")
+    log("Auditing exponential backoff structure in probe.sh...")
+    if "while " not in active_code and "for " not in active_code:
+        fail("probe.sh must implement a polling loop using 'while' or 'for'.")
+    if "curl" not in active_code:
+        fail("probe.sh must query the target endpoint using 'curl'.")
+    if "mock_service.sh" in active_code:
+        fail("Toy mock 'mock_service.sh' prohibited. Query real services with curl.")
+    if "delay" not in active_code:
+        fail("probe.sh must manage a 'delay' backoff variable.")
 
-    if "sleep " not in active_code:
-        fail("Missing 'sleep' command between retry attempts (danger: busy-wait CPU storm).")
+    try:
+        # ---------------------------------------------------------------------
+        # Test 1: Successful Probe Against Warming-Up Microservice
+        # ---------------------------------------------------------------------
+        log("Test 1: Probing warming-up microservice (ready on attempt 3)...")
+        # Ensure fresh daemon
+        cleanup_daemon(workspace)
+        port = ensure_daemon(workspace)
+        target_url = f"http://127.0.0.1:{port}/health"
 
-    if "*=" not in active_code and "* 2" not in active_code:
-        fail("Missing exponential backoff multiplier (e.g., '(( delay *= 2 ))').")
+        log_file.unlink(missing_ok=True)
+        summary_file.unlink(missing_ok=True)
 
-    def run_probe():
-        return subprocess.run(
-            ["bash", str(script)],
+        res1 = subprocess.run(
+            ["bash", str(probe_sh), target_url, "5"],
             cwd=str(workspace),
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=15,
         )
 
-    # 2. Test successful recovery on attempt 3
-    log("Test 1: Testing recovery of transiently failing service (succeeds attempt 3)...")
-    if counter_tmp.exists():
-        counter_tmp.unlink()
+        if res1.returncode != 0:
+            fail(f"probe.sh failed on warming-up service ({res1.returncode}). Stderr:\n{res1.stderr}")
 
-    res1 = run_probe()
-    if res1.returncode != 0:
-        fail(f"probe.sh failed to recover transient service. Exit code {res1.returncode}. Stderr: {res1.stderr.strip()}")
+        if "PROBE_SUCCESS" not in res1.stdout:
+            fail("Expected 'PROBE_SUCCESS:' summary output on successful probe.")
 
-    if "SERVICE_READY" not in res1.stdout:
-        fail("Expected 'SERVICE_READY' in output.")
+        if not summary_file.exists():
+            fail("probe.sh did not produce 'probe_summary.json'.")
 
-    calls = int(counter_tmp.read_text(encoding="utf-8").strip()) if counter_tmp.exists() else 0
-    if calls != 3:
-        fail(f"Expected service to be probed exactly 3 times before succeeding, got {calls} attempts.")
-    log(f"Service successfully polled {calls} times with exponential backoff before reporting ready.")
+        try:
+            summary = json.loads(summary_file.read_text(encoding="utf-8"))
+            if summary.get("status") != "SERVICE_READY":
+                fail(f"Expected status 'SERVICE_READY', got: {summary.get('status')}")
+            if summary.get("total_attempts") != 3:
+                fail(f"Expected 3 attempts for warming-up service, got: {summary.get('total_attempts')}")
+        except json.JSONDecodeError as exc:
+            fail(f"Failed to parse probe_summary.json as JSON: {exc}")
 
-    # 3. Test timeout on persistent failure
-    log("Test 2: Testing timeout when service fails permanently...")
-    mock_service.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    res2 = run_probe()
-    if res2.returncode == 0:
-        fail("probe.sh succeeded when service permanently failed! Must abort with exit code 1.")
+        if not log_file.exists():
+            fail("probe.sh did not generate 'probe_attempts.log'.")
 
-    if "PROBE_TIMEOUT" not in res2.stderr and "PROBE_TIMEOUT" not in res2.stdout:
-        fail("Expected 'PROBE_TIMEOUT' warning on persistent failure.")
+        attempts = [l for l in log_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+        if len(attempts) != 3:
+            fail(f"Expected exactly 3 logged attempts in probe_attempts.log, got: {len(attempts)}")
 
-    # Cleanup
-    if counter_tmp.exists():
-        counter_tmp.unlink()
+        log("Successfully survived warm-up phase and reached SERVICE_READY on attempt 3.")
 
-    log("Verified exponential backoff retry loop and timeout bounds.")
-    print("\n  [PASS] EXPONENTIAL BACKOFF RETRY PROBE VERIFIED.")
+        # ---------------------------------------------------------------------
+        # Test 2: Timeout Against Permanently Dead Service
+        # ---------------------------------------------------------------------
+        log("Test 2: Stress testing timeout exhaustion against dead endpoint...")
+        log_file.unlink(missing_ok=True)
+        summary_file.unlink(missing_ok=True)
+
+        env = dict(os.environ)
+        env["BASE_DELAY"] = "0"
+        env["MAX_DELAY"] = "0"
+
+        res2 = subprocess.run(
+            ["bash", str(probe_sh), "http://127.0.0.1:19999/nonexistent", "3"],
+            cwd=str(workspace),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if res2.returncode == 0:
+            fail("probe.sh unexpectedly succeeded against a non-existent port!")
+
+        combined2 = res2.stdout + res2.stderr
+        if "PROBE_TIMEOUT" not in combined2:
+            fail(f"Expected 'PROBE_TIMEOUT' error output upon attempt exhaustion. Got:\n{combined2}")
+
+        if not summary_file.exists():
+            fail("probe.sh did not generate 'probe_summary.json' upon timeout exhaustion.")
+
+        try:
+            summary2 = json.loads(summary_file.read_text(encoding="utf-8"))
+            if summary2.get("status") != "TIMEOUT":
+                fail(f"Expected status 'TIMEOUT' in summary, got: {summary2.get('status')}")
+            if summary2.get("total_attempts") != 3:
+                fail(f"Expected 3 attempts on timeout, got: {summary2.get('total_attempts')}")
+        except json.JSONDecodeError as exc:
+            fail(f"Failed to parse timeout probe_summary.json: {exc}")
+
+        log("Timeout exhaustion, attempt capping, and failure manifest verified.")
+
+    finally:
+        cleanup_daemon(workspace)
+
+    print("ALL STATE ASSERTIONS PASSED")
     sys.exit(0)
 
 

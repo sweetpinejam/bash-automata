@@ -1,16 +1,62 @@
-# Code Blueprint: Atomic Directory Mutex & Trap Cleanup
+# Tactical Blueprint: Atomic Mutex with Stale Lock Recovery
 
-In Linux POSIX filesystems, `mkdir` is an atomic kernel system call (`sys_mkdir`). Either it succeeds or it fails with `EEXIST`:
+To achieve mutual exclusion without race conditions and without permanent deadlocks from killed processes:
+
+---
+
+## 1. Atomic Acquisition via `mkdir`
+Never use `[ -d dir ]` or `mkdir -p`. Use bare `mkdir`:
 
 ```bash
-# Blueprint Pattern:
-LOCK_DIR="sync.lock"
+LOCK_DIR="./sync.lock"
 
-# Atomic acquisition:
-mkdir "$LOCK_DIR" 2>/dev/null || { echo "LOCK_ACQUIRE_FAILED"; exit 1; }
+acquire_lock() {
+    # 1. Attempt atomic directory creation
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+        return 0
+    fi
 
-# Automatic unlock on exit or termination:
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+    # 2. Collision detected: audit lock owner
+    if [[ -f "$LOCK_DIR/pid" ]]; then
+        local owner_pid
+        owner_pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || echo "")"
+
+        # Check if the process is genuinely running
+        if [[ -n "$owner_pid" ]] && kill -0 "$owner_pid" 2>/dev/null; then
+            echo "LOCK_ACQUIRE_FAILED: Active process (PID $owner_pid) holds lock." >&2
+            exit 1
+        fi
+        echo "[WARN] Stale lock detected (dead PID $owner_pid). Reclaiming..." >&2
+    fi
+
+    # 3. Purge stale lock and acquire
+    rm -rf "$LOCK_DIR"
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid"
+        return 0
+    fi
+
+    echo "LOCK_ACQUIRE_FAILED" >&2
+    exit 1
+}
 ```
 
-> **Key Rule**: Avoid `if [ -d "$DIR" ]` followed by `mkdir` (Time-of-Check to Time-of-Use race condition). Attempt `mkdir` directly and handle failure.
+---
+
+## 2. Lock Release via Trap
+Ensure the lock is unlinked upon normal completion or crash, verifying PID ownership:
+
+```bash
+release_lock() {
+    local exit_status=$?
+    if [[ -d "$LOCK_DIR" ]]; then
+        if [[ -f "$LOCK_DIR/pid" ]] && [[ "$(cat "$LOCK_DIR/pid" 2>/dev/null)" == "$$" ]]; then
+            rm -rf "$LOCK_DIR"
+        fi
+    fi
+    exit "$exit_status"
+}
+
+trap release_lock EXIT INT TERM
+```

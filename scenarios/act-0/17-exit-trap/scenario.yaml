@@ -1,18 +1,18 @@
 id: "act-0-17-exit-trap"
 act: 0
 order: 17
-title: "The Exit Trap"
-difficulty: "Beginner"
+title: "The Exit Trap & Zero-Pollution Cleanup"
+difficulty: "Intermediate"
 timeout_seconds: 30
 
 limits:
   memory_limit: "32m"
   cpu_quota: "1.0"
-  pids_limit: 20
+  pids_limit: 30
 
 briefing:
-  situation: "A background job acquires a temporary lock file to prevent overlapping runs. If the script is terminated via SIGINT (Ctrl+C) or an unhandled error, the lock file leaks on disk, causing a deadlock on subsequent runs."
-  objective: "Register a POSIX signal trap in 'job.sh' using 'trap ... EXIT INT TERM' to guarantee that the lock file is removed whenever the process exits."
+  situation: "Automated jobs provision isolated scratch build sandboxes and PID lockfiles. When scripts crash or receive termination signals, naive sequential cleanup at the end is bypassed, leaking directories and deadlocking future runs."
+  objective: "Implement a deterministic resource cleanup handler in 'job.sh' and register it via 'trap cleanup EXIT INT TERM', guaranteeing zero leaked sandboxes or PID locks across normal exits, crash aborts, and external signals."
 
 files:
   workspace_dir: "workspace"
@@ -24,11 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'job.sh' registers a trap on EXIT, INT, and TERM"
-    - "Lock file is successfully deleted on normal completion"
-    - "Lock file is successfully deleted when sent a SIGTERM or SIGINT signal"
+    - "'job.sh' defines 'cleanup' and registers 'trap cleanup EXIT INT TERM'"
+    - "Scratch sandboxes are purged unconditionally upon normal completion"
+    - "Scratch sandboxes and PID files are purged upon unhandled crash failures"
+    - "Scratch sandboxes and PID files are purged when SIGTERM is injected"
+    - "Original exit codes are preserved across cleanup execution"
 
 hints:
-  - "The trap command attaches a cleanup handler to OS signals: 'trap cleanup_function EXIT INT TERM'."
-  - "Alternatively, inline commands can be trapped: 'trap \"rm -f \\\"$LOCK_FILE\\\"\" EXIT INT TERM'."
-  - "The EXIT pseudo-signal runs on ANY script exit (normal, error, or signal)."
+  - "Register 'trap cleanup EXIT INT TERM' *before* creating the scratch directory."
+  - "Capture 'local exit_status=$?' as the very first line of 'cleanup()' so commands like 'echo' don't overwrite the exit status."
+  - "Always verify '[[ -n \"${SCRATCH_DIR:-}\" && -d \"$SCRATCH_DIR\" ]]' before running 'rm -rf'."

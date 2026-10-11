@@ -1,18 +1,18 @@
 id: "act-0-20-heredoc-forge"
 act: 0
 order: 20
-title: "Heredoc Template Forge"
-difficulty: "Beginner"
-timeout_seconds: 15
+title: "The Heredoc Template Forge"
+difficulty: "Intermediate"
+timeout_seconds: 30
 
 limits:
   memory_limit: "32m"
   cpu_quota: "1.0"
-  pids_limit: 20
+  pids_limit: 30
 
 briefing:
-  situation: "An automated infrastructure provisioner ('forge.sh') generates a systemd service file ('service.conf') and a helper runner ('run.sh'). It used unescaped heredocs, causing literal systemd directives like '$MAINPID' to expand into empty strings, corrupting the generated configuration."
-  objective: "Refactor 'forge.sh' to use precise heredoc templating: use an unquoted heredoc ('cat <<EOF') with escaped '\\$MAINPID' to interpolate deploy variables while preserving systemd directives, and use a quoted heredoc ('cat <<'EOF'') to generate 'run.sh' with literal '$1' intact."
+  situation: "Automated configuration provisioning scripts are corrupting systemd unit files, proxy configurations, and generated shell wrappers because unquoted heredocs expand literal tokens ($MAINPID, $1, $@) into empty strings."
+  objective: "Refactor 'forge.sh' to use the appropriate Heredoc modalities: unquoted '<<EOF' with escaped '\$MAINPID' for 'service.conf', tab-stripped '<<-EOF' for indented 'proxy.conf', and quoted literal '<<\'EOF\'' for 'run.sh'."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'forge.sh' executes with exit code 0"
-    - "Generates 'service.conf' with interpolated APP_NAME and PORT"
-    - "'service.conf' contains literal '$MAINPID' (not an empty string)"
-    - "Generates 'run.sh' with literal '$1' and executable permissions"
+    - "'forge.sh' uses unquoted '<<EOF' for 'service.conf' and escapes '\$MAINPID'"
+    - "'forge.sh' uses tab-stripped '<<-EOF' for indented 'proxy.conf'"
+    - "'forge.sh' uses quoted '<<\'EOF\'' for 'run.sh' and marks it executable"
+    - "Generated 'run.sh' preserves literal '$1' and '$@' and executes correctly"
+    - "All artifacts and byte sizes are cataloged into 'forge_manifest.json'"
 
 hints:
-  - "When the heredoc delimiter is quoted ('<<'EOF''), all expansions are disabled and text is treated literally."
-  - "When the delimiter is unquoted ('<<EOF'), variables expand. To keep a literal dollar sign, escape it: '\\$MAINPID'."
-  - "To strip leading tabs in indented heredocs, use '<<-EOF'."
+  - "In unquoted heredocs, escape dollar signs with backslash: 'ExecReload=/bin/kill -HUP \$MAINPID'."
+  - "To strip leading tabs from an indented heredoc inside a function, use 'cat <<-EOF' and indent with hard TAB characters."
+  - "To treat heredoc contents completely literally without any variable expansion, quote the delimiter: 'cat <<'\''EOF'\'' > run.sh'."
