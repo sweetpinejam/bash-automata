@@ -1,24 +1,49 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# REFERENCE SOLUTION: Automated Release Publisher
+# REFERENCE SOLUTION: DRILL 0.15 (Short-Circuit Guard Rails)
 # ==============================================================================
 set -euo pipefail
 
-run_tests() {
-  ./mock_test.sh
+VERSION="1.0.0"
+
+if [[ "${1:-}" == "--version" ]]; then
+    VERSION="${2:-1.0.0}"
+    shift 2
+fi
+
+validate_env() {
+    [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version format '$VERSION'" >&2; return 1; }
+    mkdir -p dist
 }
 
-build_bundle() {
-  echo "v1.0.0-release" > dist/bundle.bin
+compile_manifest() {
+    cat <<EOF > "dist/manifest.json"
+{
+  "version": "$VERSION",
+  "status": "RELEASE_STAGED",
+  "timestamp": 1700000000
+}
+EOF
 }
 
-sign_bundle() {
-  echo "SIG_VALID" > dist/bundle.sig
+generate_checksum() {
+    sha256sum "dist/manifest.json" > "dist/manifest.sha256"
 }
 
-# Clean, flattened short-circuit guard rails:
-run_tests || { echo "ERROR: Tests failed" >&2; exit 1; }
-build_bundle || { echo "ERROR: Build failed" >&2; exit 1; }
-sign_bundle || { echo "ERROR: Signing failed" >&2; exit 1; }
+package_archive() {
+    tar -czf "dist/release.tar.gz" -C dist manifest.json manifest.sha256
+}
 
-echo "PUBLISH_SUCCESS"
+verify_bundle() {
+    tar -tzf "dist/release.tar.gz" >/dev/null
+}
+
+# Execute linear short-circuit guard rails
+validate_env      || { echo "FATAL: validate_env failed" >&2; exit 1; }
+compile_manifest  || { echo "FATAL: compile_manifest failed" >&2; exit 1; }
+generate_checksum || { echo "FATAL: generate_checksum failed" >&2; exit 1; }
+package_archive   || { echo "FATAL: package_archive failed" >&2; exit 1; }
+verify_bundle     || { echo "FATAL: verify_bundle failed" >&2; exit 1; }
+
+SHA=$(cut -d' ' -f1 < "dist/manifest.sha256")
+echo "PUBLISH_COMPLETE: version=$VERSION, archive=dist/release.tar.gz, checksum=$SHA"

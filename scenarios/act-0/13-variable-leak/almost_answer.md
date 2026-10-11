@@ -1,17 +1,33 @@
-# Code Blueprint: Local Function Variable Scoping
+# Code Blueprint & Almost-Answer: The Variable Leak
 
-By default, all variables in Bash functions are global. Protect calling scopes by declaring variables with `local`:
+If you need function scoping templates for `backup_bot.sh`:
 
+### 1. Declaring `local` Scoping in Functions
 ```bash
-# Blueprint Pattern:
-process_backup_day() {
-  local day_id="$1"
-  local chunk
+process_day_chunks() {
+    local day="$1"
+    local chunk_id
 
-  for day_id in {10..12}; do
-    echo "  Processing chunk $day_id" >/dev/null
-  done
+    for chunk_id in 1 2 3; do
+        :
+    done
+}
+
+archive_day() {
+    local day="$1"
+    local chunks_count=3
+
+    process_day_chunks "$day"
+    printf "DAY_%d\t%d\tSUCCESS\n" "$day" "$chunks_count" >> "$MANIFEST_FILE"
 }
 ```
 
-> **Key Rule**: Declare every variable inside a function with `local`. If a loop variable has the same name as a variable in the caller, without `local` it overwrites the outer loop variable!
+### 2. Main Orchestration Loop
+```bash
+day_id=1
+while (( day_id <= TOTAL_DAYS )); do
+    archive_day "$day_id"
+    (( TOTAL_CHUNKS += 3 ))
+    (( ++day_id ))
+done
+```

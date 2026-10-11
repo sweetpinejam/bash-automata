@@ -1,29 +1,58 @@
-# Code Blueprint: CLI Flag Parsing with `shift` and `case`
+# Code Blueprint & Almost-Answer: Flag & Argument Parsing
 
-Robust CLI flag parsing does not rely on hardcoded `$1` or `$2`. Use a loop that consumes arguments with `shift`:
+If you need structural parsing templates for `migrator.sh`:
 
+### 1. The Canonical `while-case-shift` Loop
 ```bash
-# Blueprint Pattern:
-while (( $# > 0 )); do
-  case "$1" in
-    -e|--env)
-      env="$2"
-      shift 2
-      ;;
-    -d|--dry-run)
-      dry_run="true"
-      shift
-      ;;
-    -v|--verbose)
-      verbose="true"
-      shift
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      shift
-      ;;
-  esac
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--dry-run)
+            DRY_RUN="true"
+            shift
+            ;;
+        --env=*)
+            ENV="${1#*=}"
+            shift
+            ;;
+        -e|--env)
+            [[ $# -ge 2 ]] || exit 1
+            ENV="$2"
+            shift 2
+            ;;
+        --timeout=*)
+            TIMEOUT="${1#*=}"
+            shift
+            ;;
+        -t|--timeout)
+            [[ $# -ge 2 ]] || exit 1
+            TIMEOUT="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            [[ $# -gt 0 ]] && { TARGET="$1"; shift $#; }
+            break
+            ;;
+        -*)
+            echo "Error: Unknown option '$1'" >&2
+            exit 1
+            ;;
+        *)
+            TARGET="$1"
+            shift
+            ;;
+    esac
 done
 ```
 
-> **Key Rule**: Use `shift 2` when an option consumes an accompanying value argument (`$2`), and `shift 1` for standalone boolean flags.
+### 2. Parameter Validation
+```bash
+case "$ENV" in
+    development|staging|production) ;;
+    *) echo "Error: Invalid env" >&2; exit 1 ;;
+esac
+
+if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || (( TIMEOUT < 5 || TIMEOUT > 3600 )); then
+    exit 1
+fi
+```

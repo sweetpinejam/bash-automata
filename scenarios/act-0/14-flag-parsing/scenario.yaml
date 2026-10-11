@@ -11,8 +11,8 @@ limits:
   pids_limit: 20
 
 briefing:
-  situation: "An automated database migration utility ('migrator.sh') naively assumes options are passed in a hardcoded order ('$1' must be '--env', '$2' must be the environment). When CI passes flags in a different order (e.g. '--dry-run --env production'), it misparses values and fails."
-  objective: "Refactor 'migrator.sh' using a standard 'while (( $# > 0 ))' loop and 'shift' statement: support '--env|-e <val>', '--dry-run|-d', and '--verbose|-v' in ANY order. Save the parsed configuration into 'migration.cfg'."
+  situation: "An automated database migration CLI ('migrator.sh') naively assumes hardcoded argument order. It misparses values and crashes when CI passes reordered flags, attached values ('--env=prod'), or end-of-options markers."
+  objective: "Build an enterprise CLI parser in 'migrator.sh' using the canonical 'while [[ $# -gt 0 ]]' loop, 'case' pattern matching, and 'shift'. Support short/long options, attached '=' syntax, validation bounds, and '--' delimiters, generating 'migration_plan.json'."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'migrator.sh' uses 'while (( $# > 0 ))' and 'shift'"
-    - "Correctly parses '--dry-run' regardless of position"
-    - "Correctly captures '--env production' when preceded by boolean flags"
-    - "Generates valid 'migration.cfg' with ENV, DRY_RUN, and VERBOSE keys"
+    - "Uses 'while [[ $# -gt 0 ]]' and 'shift' structure"
+    - "Parses flags in arbitrary order with short and long aliases"
+    - "Supports attached '=' syntax (--env=staging)"
+    - "Rejects invalid environments, timeouts, and unknown options with exit 1"
+    - "Generates valid 'migration_plan.json'"
 
 hints:
-  - "Check the number of remaining arguments with '$#' in a loop: 'while (( $# > 0 )); do'."
-  - "For boolean flags, set the variable and shift 1: 'DRY_RUN=true; shift ;;'"
-  - "For options that take a value, capture '$2' and shift 2: 'ENV=\"$2\"; shift 2 ;;'"
+  - "The parser skeleton: 'while [[ $# -gt 0 ]]; do case \"$1\" in -d|--dry-run) DRY_RUN=true; shift ;; ... esac; done'."
+  - "Extract attached values: '--env=*) ENV=\"${1#*=}\"; shift ;;'"
+  - "Consume space-separated options: '-e|--env) ENV=\"$2\"; shift 2 ;;'"

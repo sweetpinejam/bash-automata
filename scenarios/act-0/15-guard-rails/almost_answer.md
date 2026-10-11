@@ -1,14 +1,18 @@
-# Code Blueprint: Short-Circuit Pipeline Guard Rails
+# Code Blueprint & Almost-Answer: Short-Circuit Guard Rails
 
-Flatten deeply nested `if [ $? -eq 0 ]` blocks using POSIX short-circuit `||` error handling:
+If you need structural guard-rail patterns for `publisher.sh`:
 
+### 1. Linear Short-Circuit Assertions
 ```bash
-# Blueprint Pattern:
-run_tests || { echo "ERROR: Tests failed" >&2; exit 1; }
-build_bundle || { echo "ERROR: Build failed" >&2; exit 1; }
-sign_bundle || { echo "ERROR: Signing failed" >&2; exit 1; }
-
-echo "PUBLISH_SUCCESS"
+validate_env      || { echo "FATAL: validate_env failed" >&2; exit 1; }
+compile_manifest  || { echo "FATAL: compile_manifest failed" >&2; exit 1; }
+generate_checksum || { echo "FATAL: generate_checksum failed" >&2; exit 1; }
+package_archive   || { echo "FATAL: package_archive failed" >&2; exit 1; }
+verify_bundle     || { echo "FATAL: verify_bundle failed" >&2; exit 1; }
 ```
 
-> **Key Rule**: When grouping commands inside `{ ...; }`, the closing curly brace MUST be preceded by a semicolon or a newline, with spaces surrounding the braces.
+### 2. Grouping Syntax Rules:
+Notice:
+* Space after `{`
+* Space before `}`
+* Semicolon `;` after `exit 1`

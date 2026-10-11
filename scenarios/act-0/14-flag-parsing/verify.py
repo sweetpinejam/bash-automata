@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.14: Flag & Argument Parsing."""
+"""State-driven verification harness for Drill 0.14: Flag & Argument Parsing."""
+import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -15,79 +17,115 @@ def fail(msg: str):
     sys.exit(1)
 
 
-def parse_cfg(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    res = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if "=" in line:
-            k, v = line.split("=", 1)
-            res[k.strip()] = v.strip()
-    return res
-
-
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
     script = workspace / "migrator.sh"
-    cfg_file = workspace / "migration.cfg"
+    plan_file = workspace / "migration_plan.json"
 
     if not script.exists():
         fail("Missing required script: migrator.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"migrator.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit for while-case-shift
+    log("Auditing while-case-shift parser construction in migrator.sh...")
     content = script.read_text(encoding="utf-8")
     active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
 
-    # 1. Static audit
-    log("Auditing flag parsing loop with shift in migrator.sh...")
     if "shift" not in active_code:
-        fail("Missing 'shift' keyword for argument consumption.")
+        fail("Missing required 'shift' operator.")
+    if not re.search(r'\bcase\s+.*\s+in\b', active_code) or "esac" not in active_code:
+        fail("Missing required 'case ... in ... esac' argument matching construct.")
 
-    if "$#" not in active_code:
-        fail("Missing '$#' argument counter check.")
-
-    # 2. Execution test with reordered flags
-    log("Test 1: Testing arbitrary argument ordering (--dry-run -v --env production)...")
+    # Test 1: Attached syntax and reordered flags
+    log("Testing attached options (--env=staging --timeout=45)...")
     res1 = subprocess.run(
-        ["bash", str(script), "--dry-run", "-v", "--env", "production"],
+        ["bash", str(script), "--dry-run", "--env=staging", "--timeout=45", "--batch-size=500", "20261011_add_table"],
         cwd=str(workspace),
         capture_output=True,
         text=True,
         timeout=5,
     )
     if res1.returncode != 0:
-        fail(f"migrator.sh failed with exit code {res1.returncode}. Stderr: {res1.stderr.strip()}")
+        fail(f"migrator.sh failed on attached options: {res1.stderr.strip()}")
 
-    cfg1 = parse_cfg(cfg_file)
-    if cfg1.get("ENV") != "production":
-        fail(f"Expected ENV=production, got '{cfg1.get('ENV')}'")
-    if cfg1.get("DRY_RUN") != "true":
-        fail(f"Expected DRY_RUN=true, got '{cfg1.get('DRY_RUN')}'")
-    if cfg1.get("VERBOSE") != "true":
-        fail(f"Expected VERBOSE=true, got '{cfg1.get('VERBOSE')}'")
+    if "MIGRATOR_READY:" not in res1.stdout:
+        fail("migrator.sh did not emit expected 'MIGRATOR_READY:' summary.")
 
-    # 3. Execution test with minimal flag
-    log("Test 2: Testing single flag (-e staging)...")
+    if not plan_file.exists():
+        fail("Missing output file: migration_plan.json")
+
+    plan1 = json.loads(plan_file.read_text(encoding="utf-8"))
+    if plan1.get("env") != "staging":
+        fail(f"Expected env='staging', got '{plan1.get('env')}'")
+    if plan1.get("dry_run") is not True:
+        fail("Expected dry_run=true")
+    if plan1.get("timeout") != 45:
+        fail(f"Expected timeout=45, got {plan1.get('timeout')}")
+    if plan1.get("batch_size") != 500:
+        fail(f"Expected batch_size=500, got {plan1.get('batch_size')}")
+    if plan1.get("target") != "20261011_add_table":
+        fail(f"Expected target='20261011_add_table', got '{plan1.get('target')}'")
+
+    # Test 2: Short space-separated options in arbitrary order
+    log("Testing short options (-e production -d -v -t 120)...")
     res2 = subprocess.run(
-        ["bash", str(script), "-e", "staging"],
+        ["bash", str(script), "-v", "-d", "-e", "production", "-t", "120"],
         cwd=str(workspace),
         capture_output=True,
         text=True,
         timeout=5,
     )
     if res2.returncode != 0:
-        fail(f"migrator.sh failed with exit code {res2.returncode}")
+        fail(f"migrator.sh failed on short options: {res2.stderr.strip()}")
 
-    cfg2 = parse_cfg(cfg_file)
-    if cfg2.get("ENV") != "staging":
-        fail(f"Expected ENV=staging, got '{cfg2.get('ENV')}'")
-    if cfg2.get("DRY_RUN") != "false":
-        fail(f"Expected DRY_RUN=false, got '{cfg2.get('DRY_RUN')}'")
-    if cfg2.get("VERBOSE") != "false":
-        fail(f"Expected VERBOSE=false, got '{cfg2.get('VERBOSE')}'")
+    plan2 = json.loads(plan_file.read_text(encoding="utf-8"))
+    if plan2.get("env") != "production" or plan2.get("verbose") is not True or plan2.get("dry_run") is not True:
+        fail(f"Incorrect short option parsing: {plan2}")
+    if plan2.get("timeout") != 120:
+        fail(f"Expected timeout=120, got {plan2.get('timeout')}")
+    if plan2.get("target") != "all":
+        fail(f"Expected default target='all', got '{plan2.get('target')}'")
 
-    log("Parsed reordered flags and values with 100% accuracy.")
+    # Test 3: End-of-options marker (--)
+    log("Testing end-of-options delimiter (--)...")
+    res3 = subprocess.run(
+        ["bash", str(script), "--force", "--", "-dash-prefixed-target"],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if res3.returncode != 0:
+        fail(f"migrator.sh failed with '--' delimiter: {res3.stderr.strip()}")
+
+    plan3 = json.loads(plan_file.read_text(encoding="utf-8"))
+    if plan3.get("target") != "-dash-prefixed-target":
+        fail(f"Expected target='-dash-prefixed-target', got '{plan3.get('target')}'")
+
+    # Test 4: Invalid environment validation
+    log("Testing validation for invalid environment...")
+    res4 = subprocess.run(["bash", str(script), "--env=invalid_env"], cwd=str(workspace), capture_output=True, text=True)
+    if res4.returncode == 0:
+        fail("migrator.sh must exit 1 when an invalid environment is supplied.")
+
+    # Test 5: Invalid timeout validation
+    log("Testing validation for invalid timeout...")
+    res5 = subprocess.run(["bash", str(script), "--timeout=0"], cwd=str(workspace), capture_output=True, text=True)
+    if res5.returncode == 0:
+        fail("migrator.sh must exit 1 when timeout is out of range.")
+
+    # Test 6: Unknown option rejection
+    log("Testing unknown option rejection...")
+    res6 = subprocess.run(["bash", str(script), "--unknown-flag"], cwd=str(workspace), capture_output=True, text=True)
+    if res6.returncode == 0:
+        fail("migrator.sh must exit 1 when an unknown option is supplied.")
+
+    log("Successfully verified short/long flags, attached syntax, validation, and JSON plan generation!")
     print("\n  [PASS] POSITIONAL FLAG PARSING AND CONSUMPTION VIA SHIFT VERIFIED.")
-    sys.exit(0)
 
 
 if __name__ == "__main__":

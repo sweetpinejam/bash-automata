@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-rm -rf dist
-mkdir -p dist
+WORKSPACE="${AUTOMATA_WORKSPACE:-$(pwd)}"
 
-cat <<'EOF' > mock_test.sh
-#!/bin/sh
-exit 0
-EOF
-chmod +x mock_test.sh
+rm -rf "$WORKSPACE/dist"
 
-chmod +x publisher.sh
+if [[ -f "$WORKSPACE/publisher.sh" ]]; then
+    chmod +x "$WORKSPACE/publisher.sh"
+fi
+
+echo "[SETUP COMPLETE] Environment reset for Drill 0.15"

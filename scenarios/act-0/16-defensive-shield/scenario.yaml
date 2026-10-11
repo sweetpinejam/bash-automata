@@ -2,17 +2,17 @@ id: "act-0-16-defensive-shield"
 act: 0
 order: 16
 title: "The Defensive Shield"
-difficulty: "Beginner"
+difficulty: "Intermediate"
 timeout_seconds: 30
 
 limits:
   memory_limit: "32m"
   cpu_quota: "1.0"
-  pids_limit: 20
+  pids_limit: 30
 
 briefing:
-  situation: "By default, Bash scripts silently continue when commands fail or when undefined variables expand to empty strings. In production, this causes catastrophic silent failures."
-  objective: "Harden 'deploy.sh' by adding the sacred defensive header 'set -euo pipefail', ensuring pipeline failures and unbound variables halt execution with non-zero exit codes."
+  situation: "Unattended production deployment automation is running with permissive shell defaults. Pipelined upstream crashes are silently masked, unbound variables expand to empty strings, and failed steps leave no crash diagnostics."
+  objective: "Harden 'deploy.sh' by enabling strict defensive execution ('set -euo pipefail'), binding required variables safely, and registering an 'ERR' trap that emits crash metadata ('deploy_crash.dump') on failure."
 
 files:
   workspace_dir: "workspace"
@@ -24,11 +24,13 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'deploy.sh' includes 'set -euo pipefail'"
-    - "Pipeline failure detection halts execution"
-    - "Unbound variable detection prevents empty string expansion"
+    - "'deploy.sh' enforces 'set -euo pipefail'"
+    - "Unbound variables trigger immediate fatal error under 'set -u'"
+    - "Upstream pipeline crashes are trapped and abort execution under 'set -o pipefail'"
+    - "Unhandled errors fire 'on_failure' and generate 'deploy_crash.dump' via 'trap ... ERR'"
+    - "Successful executions generate 'deploy_status.json' and summary output"
 
 hints:
-  - "The defensive shell mantra is: 'set -euo pipefail'."
-  - "-e exits on error, -u exits on unbound variables, -o pipefail preserves pipeline error codes."
-  - "Place 'set -euo pipefail' right below the shebang '#!/usr/bin/env bash'."
+  - "The defensive shell triad is 'set -euo pipefail' placed at the top of the script."
+  - "Use 'trap '\''on_failure \"$LINENO\" \"$BASH_COMMAND\" \"$?\"'\'' ERR' to capture diagnostic crash context."
+  - "Under 'set -u', expanding '${1:-$DEPLOY_ENV}' will safely inspect $1, but if $DEPLOY_ENV is unset, it halts with an unbound variable error."

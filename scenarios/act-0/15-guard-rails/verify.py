@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Fast state-driven verification for Lesson 0.15: Short-Circuit Guard Rails."""
+"""State-driven verification harness for Drill 0.15: Short-Circuit Guard Rails."""
 import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,67 +20,76 @@ def fail(msg: str):
 def main():
     workspace = Path(os.environ.get("AUTOMATA_WORKSPACE", "."))
     script = workspace / "publisher.sh"
-    test_sh = workspace / "mock_test.sh"
-    bundle_bin = workspace / "dist" / "bundle.bin"
-    bundle_sig = workspace / "dist" / "bundle.sig"
+    dist_dir = workspace / "dist"
 
     if not script.exists():
         fail("Missing required script: publisher.sh")
 
+    # Static syntax check
+    res_syntax = subprocess.run(["bash", "-n", str(script)], capture_output=True, text=True)
+    if res_syntax.returncode != 0:
+        fail(f"publisher.sh has syntax errors: {res_syntax.stderr.strip()}")
+
+    # Static audit: strictly no nested if [ $? -eq 0 ]
+    log("Auditing short-circuit guard rails and absence of Arrow anti-pattern...")
     content = script.read_text(encoding="utf-8")
     active_code = "\n".join([l for l in content.splitlines() if not l.strip().startswith("#")])
 
-    # 1. Static audit
-    log("Auditing short-circuit guard rail constructs in publisher.sh...")
-    if "||" not in active_code or "{" not in active_code:
-        fail("Missing short-circuit guard rail pattern 'command || { ...; }'")
+    if re.search(r'if\s+\[\s*\$\?\s+-eq\s+0\s*\]', active_code):
+        fail("Arrow anti-pattern detected: 'if [ $? -eq 0 ]' creates fragile, deeply nested pipelines.")
 
-    if "if [ $? -eq 0 ]" in active_code or "if [ $? = 0 ]" in active_code:
-        fail("Found anti-pattern 'if [ $? -eq 0 ]'. Replace with clean 'command || { exit 1; }' guard rails.")
+    if not re.search(r'\|\|\s*\{', active_code):
+        fail("Missing required short-circuit guard rail pattern: 'command || { ...; }'.")
 
-    def run_publisher():
-        return subprocess.run(
-            ["bash", str(script)],
-            cwd=str(workspace),
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-    # 2. Test successful pass
-    log("Test 1: Testing valid publication flow...")
-    res1 = run_publisher()
+    # Test 1: Successful publication pipeline
+    log("Executing publisher pipeline with valid version...")
+    res1 = subprocess.run(
+        ["bash", str(script), "--version", "2.4.0"],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
     if res1.returncode != 0:
         fail(f"publisher.sh failed with exit code {res1.returncode}. Stderr: {res1.stderr.strip()}")
 
-    if "PUBLISH_SUCCESS" not in res1.stdout:
-        fail("Expected 'PUBLISH_SUCCESS' in output.")
+    if "PUBLISH_COMPLETE:" not in res1.stdout:
+        fail("publisher.sh did not emit expected 'PUBLISH_COMPLETE:' summary.")
 
-    if not bundle_bin.exists() or not bundle_sig.exists():
-        fail("Publication artifacts were not created in dist/")
+    manifest_json = dist_dir / "manifest.json"
+    manifest_sha = dist_dir / "manifest.sha256"
+    release_tar = dist_dir / "release.tar.gz"
 
-    # 3. Test failure short-circuit
-    log("Test 2: Injecting test failure into mock_test.sh...")
-    test_sh.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    # Clean up previous artifacts
-    if bundle_bin.exists():
-        bundle_bin.unlink()
-    if bundle_sig.exists():
-        bundle_sig.unlink()
+    if not manifest_json.exists():
+        fail("dist/manifest.json was not created.")
+    if not manifest_sha.exists():
+        fail("dist/manifest.sha256 was not created.")
+    if not release_tar.exists():
+        fail("dist/release.tar.gz package was not created.")
 
-    res2 = run_publisher()
+    # Verify tarball contents with real tar
+    tar_check = subprocess.run(["tar", "-tzf", str(release_tar)], capture_output=True, text=True)
+    if tar_check.returncode != 0 or "manifest.json" not in tar_check.stdout:
+        fail("Created tarball is corrupt or missing required manifest.")
+
+    # Test 2: Fail-fast guard rail on invalid version
+    log("Testing fail-fast guard rail with invalid version...")
+    shutil.rmtree(dist_dir, ignore_errors=True)
+    res2 = subprocess.run(
+        ["bash", str(script), "--version", "bad_version_str"],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
     if res2.returncode == 0:
-        fail("publisher.sh succeeded when test suite failed! It must halt immediately with non-zero exit code.")
+        fail("publisher.sh must fail fast and exit 1 on invalid version format.")
 
-    if bundle_bin.exists():
-        fail("build_bundle was executed after test failure! Short-circuit guard rail failed to abort.")
+    if release_tar.exists():
+        fail("Fail-fast breach: Downstream tarball was created even though validation failed!")
 
-    # Restore test_sh
-    test_sh.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-
-    log("Verified pipeline executes cleanly and short-circuits on failure.")
+    log("Successfully verified short-circuit guard rails, fail-fast defense, and tar packaging!")
     print("\n  [PASS] SHORT-CIRCUIT GUARD RAILS ('|| { ...; }') VERIFIED.")
-    sys.exit(0)
 
 
 if __name__ == "__main__":
