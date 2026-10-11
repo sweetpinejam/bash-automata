@@ -21,26 +21,35 @@ Every script, scenario, and tool in this platform strictly adheres to these five
    The entire CLI engine, SQLite progress ledger, and adaptive sandbox drivers use the **Python 3.12 Standard Library only**.
 6. **Strictly Binary Progress Contract**:
    Trainee progress everywhere across the platform—CLI tables, interactive menus, status summaries, and scenario headers—is strictly binary: `[COMPLETE]` (green) or `[NOT COMPLETE]` (dim). There are no intermediate or ambiguous badges (`IN PROGRESS`, `FAILED`, `UNSTARTED`).
+7. **The Rich Subsystem Contract (No Toy Scripts)**:
+   Scenarios across all Acts must never be 10-line trivial stubs with `# TODO` placeholders. Each scenario presents a realistic, substantial micro-stack (60–120 lines of Bash and 60–100 lines of Python) equipped with production wrappers: CLI argument parsing, structured logging (`[INFO]`, `[WARN]`, `[ERROR]` with timestamps), operational telemetry manifests (`status.json`, `metrics.tsv`), input validation, and real structured data handling (JSONL, syslog, TSV, binary buffers). The core pedagogical lesson (e.g., named pipe decoupling, zombie reaping, lock mutex, FD leakage) lives inside this living system as a focused, un-gimmicked engineering challenge.
 
 ---
 
 ## 2. Pedagogical Principles (The Mentor Contract)
 
-* **Deep Field Manuals (`lesson.md`)**:
-  Reading materials are exhaustive, in-depth guides designed for thorough self-paced study. Every `lesson.md` must include:
-  1. *Systems Mental Model*: How Bash tokenizes, interprets, expands, and executes under the hood.
-  2. *Syntax Anatomy & Variations*: Exhaustive breakdowns of parameter expansions, operators, and nuances.
-  3. *ASCII Architecture / Execution Flowcharts*: Visual representations of data flow, subshells, file descriptors, and pipes.
-  4. *Real-World Gotchas & Pitfalls*: Hidden traps (word-splitting, glob expansion, subshell variable loss, locale sorting, buffer stalls).
-  5. *Self-Assessment Checklist*: 4–5 conceptual checks the trainee must evaluate before writing code.
-  6. *Applied Production Scenario*: The systems engineering rationale for the drill.
+* **Deep Field Manuals & Exhaustive Study Guides (`lesson.md`)**:
+  Reading materials are exhaustive, high-caliber systems engineering manuals designed for thorough self-paced study. Every `lesson.md` must include:
+  1. *Systems Mental Model*: Deep kernel/POSIX and shell execution mechanisms (VFS inodes, signal disposition tables, file descriptor tables, buffer semantics, context switches).
+  2. *Syntax Anatomy & Nuance Matrices*: Exhaustive breakdowns of parameter expansions, operators, and behavioral flags.
+  3. *ASCII Architecture & Execution Flowcharts*: Visual representations of process trees, pipeline stages, stream routing, and state transitions.
+  4. *Real-World Gotchas & Pitfalls*: Hidden traps (word-splitting, glob expansion, subshell variable loss, locale sorting, buffer stalls, `(( 0 ))` exit codes under `set -e`).
+  5. *Curated Reading & Reference Lists*: Specific man page sections (`man 2 ...`, `man 1 ...`, `man 7 ...`) with exact syscalls/flags to search, POSIX Open Group specifications, kernel documentation, and systems architecture references.
+  6. *Self-Assessment Checklist*: 5 conceptual questions the trainee must assess before modifying code.
+  7. *Applied Production Scenario*: The real-world production incident rationale behind the architecture.
+
+* **Progressive Hint Tiering (No Answer Spoilers in Hints)**:
+  Hints must be educational stepping stones that teach trainees how to think, observe, and diagnose. Hints must **NEVER spoil the exact answer** or paste solution code:
+  * **Hint 1: Observability & Diagnostics (`[6]`)**: How to inspect and observe the symptom using standard Linux diagnostic tools (`strace`, `lsof`, `ps -eo pid,stat,comm`, `/proc/$PID/fd`, `kill -0`, `dmesg`).
+  * **Hint 2: Architectural Mechanism (`[6]`)**: The systems mental model, failure mode, and trade-offs of the relevant POSIX primitive.
+  * **Hint 3: Conceptual Blueprint & Pseudo-code (`[6]`)**: High-level algorithm or generalized pattern demonstrating how the pieces connect without giving away the scenario's specific solution code.
+
+* **The Answer Separation Contract**:
+  * **Option `[7]`: Code Blueprint (`almost_answer.md`)**: A targeted structural pattern and syntax template for trainees who need syntax scaffolding without full code spoilers.
+  * **Option `[8]`: Full Reference Solution & Post-Mortem (`solution.sh`)**: The complete, tested reference code and deep post-mortem analysis, available only when the trainee explicitly requests the answer.
+
 * **De-Mining Exercises with Substantial Implementation**:
   Trainees don't just fix a quote or a parenthesis—they implement or refactor full, working utilities, automated bots, and fault-tolerant pipeline filters.
-* **The "Never Get Stuck" Rule**:
-  * Every lesson includes the deep **Field Manual (`lesson.md`)** (`[1]`).
-  * Every lesson includes **progressive tactical hints (`[6]`)**.
-  * Every lesson includes a **targeted code blueprint & almost-answer (`almost_answer.md` / `[7]`)** providing syntax skeletons and algorithmic templates without spoiling the complete solution.
-  * Every lesson includes the **full reference working solution and post-mortem (`solution.sh` / `[8]`)**.
 
 ---
 
@@ -141,19 +150,22 @@ Every script, scenario, and tool in this platform strictly adheres to these five
 
 ---
 
-## 5. Architectural Standards for Advanced Acts (Acts 2 – 5)
+## 5. Architectural Standards for Advanced Acts (Acts 1 – 5)
 
-To maintain realistic engineering depth without bloated boilerplate:
+To ensure scenarios are deeply engaging, realistic, and pedagogically sound without bloated boilerplate:
 
-1. **Multi-Component Architecture**:
-   Each scenario includes 2–3 cooperating components (e.g. background supervisor daemon, mock workload generator, health probe).
+1. **Rich Subsystem Architecture (60–120 Lines Bash / 60–100 Lines Python)**:
+   Scenarios are structured as living micro-systems. Trainees engage with substantial, idiomatic code:
+   - **Production Wrappers**: Real CLI argument handling (`while [[ $# -gt 0 ]]`), structured logging (`[INFO]`, `[WARN]`, `[ERROR]`), metric telemetry (`status.json`), input stream validation, and defensive traps.
+   - **The Focused Core Systems Spike**: The specific kernel bug or architectural challenge (named pipe buffering, zombie process leaks, circular deadlock, descriptor leak, cgroup limits) remains clean and sharply defined.
+   - **Real Structured Payloads**: Systems process actual JSONL telemetry, syslog entries, TSV records, or binary buffers—not trivial 2-line text strings.
 2. **Realistic Symptoms over Script Toys**:
-   Briefings describe real infrastructure alarms (rate-limit 429s, deadlock freezes, zombie leaks). Trainees inspect live processes, logs, and state files.
-3. **Smart, Surgical Fixes**:
-   Fixes focus on resilient systems engineering primitives (kernel syscalls, concurrency primitives, atomic operations, signals).
-4. **Four-Tier Learning Hierarchy**:
-   Every scenario provides:
-   - `[1] Field Manual (`lesson.md`)` — Deep mental models, architecture ASCII diagram, POSIX mechanics.
-   - `[6] Tactical Intel` — 3 progressive hints.
-   - `[7] Code Blueprint (`almost_answer.md`)` — Targeted syntax pattern and mechanics.
-   - `[8] Reference Solution (`solution.sh`)` — Complete working code and post-mortem analysis.
+   Briefings describe authentic production incidents (buffer overruns, PID table exhaustion, latency spikes, circular deadlocks). Trainees use standard diagnostic tools (`lsof`, `strace`, `ps`, `/proc`) to observe the symptoms.
+3. **Progressive 4-Tier Learning Ladder**:
+   - `[1] Field Manual (lesson.md)` — Comprehensive systems mental model, syntax matrices, ASCII architecture diagrams, production gotchas, curated reading list (`man 2`, `man 1`, specs), and 5-point self-assessment checklist.
+   - `[6] Tactical Intel (Hints 1–3)` — Progressive diagnostic guidance:
+     * *Hint 1*: Observability & diagnosis commands (`ps`, `lsof`, `/proc`).
+     * *Hint 2*: Architectural mechanism & POSIX primitives.
+     * *Hint 3*: Conceptual blueprint & pseudo-code (never spoiling raw solution code).
+   - `[7] Code Blueprint (almost_answer.md)` — Targeted structural skeleton and syntax mechanics for trainees needing structural scaffolding.
+   - `[8] Reference Solution (solution.sh)` — Complete, tested reference implementation and post-mortem analysis.
