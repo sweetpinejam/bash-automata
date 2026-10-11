@@ -5,11 +5,11 @@
 # INSTRUCTIONS:
 # By default, Bash silently ignores undefined variables and pipe failures!
 #
-# 1. Add 'set -euo pipefail' directly below this header.
-# 2. Fix the unbound variable TARGET_ENV so it has a default value or is set.
+# Enable defensive execution options to fail immediately on unhandled errors,
+# unbound variables, and pipe pipeline failures.
 # ==============================================================================
 
-# TODO: Add defensive flags here
+# TODO: Enable defensive shell options here
 
 TARGET_ENV="${TARGET_ENV:-production}"
 

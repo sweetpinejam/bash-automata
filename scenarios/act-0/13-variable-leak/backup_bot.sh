@@ -10,8 +10,7 @@ rm -f "$report_file"
 
 # Helper function to process chunks
 process_backup_day() {
-  # TODO: Declare local variables using 'local' so they don't overwrite outer scope:
-  # local day_id chunk
+  # TODO: Scope variables locally so they do not leak or clobber outer caller scope:
   day_id="$1"
   for day_id in {10..12}; do
     echo "  Processing chunk $day_id" >/dev/null

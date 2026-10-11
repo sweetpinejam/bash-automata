@@ -21,7 +21,6 @@ done
 # BUG: Sleeps without calling 'wait', leaving 20 zombie processes in the kernel table!
 sleep 0.5
 
-# TODO: Reap all background workers so no zombies linger:
-# wait
+# TODO: Reap all background child worker processes so no zombies remain in the process table.
 
 echo "SUPERVISOR_DONE"

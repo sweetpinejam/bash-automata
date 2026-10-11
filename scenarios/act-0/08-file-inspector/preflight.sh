@@ -3,9 +3,9 @@
 # Automated Pre-Flight Deployment Checker
 # Objective: Validate prerequisites before starting service
 # Required checks:
-# 1. config/app.conf must exist and have non-zero size (-s)
-# 2. releases/ must exist and be a directory (-d)
-# 3. bin/app must exist and be executable (-x)
+# 1. config/app.conf must exist and have non-zero size
+# 2. releases/ must exist and be a directory
+# 3. bin/app must exist and have executable permissions
 # ==============================================================================
 set -euo pipefail
 

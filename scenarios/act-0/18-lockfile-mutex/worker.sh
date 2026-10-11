@@ -15,11 +15,9 @@ if [ -d "$LOCK_DIR" ]; then
 fi
 mkdir -p "$LOCK_DIR"
 
-# TODO: Refactor using atomic mkdir:
-# 1. Attempt atomic directory creation:
-#    mkdir "$LOCK_DIR" 2>/dev/null || { echo "LOCK_ACQUIRE_FAILED"; exit 1; }
-# 2. Register EXIT trap to guarantee lock directory cleanup:
-#    trap 'rmdir "$LOCK_DIR"' EXIT
+# TODO: Implement atomic mutex locking and cleanup:
+# 1. Attempt atomic directory creation; abort with LOCK_ACQUIRE_FAILED if it already exists
+# 2. Register an EXIT trap to ensure the lock directory is unlinked upon completion
 
 echo "SYNC_RUNNING"
 # Simulate short sync task

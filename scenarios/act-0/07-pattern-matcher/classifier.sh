@@ -18,12 +18,9 @@ pattern='^ALERT[[:space:]]+ip=([0-9.]+)[[:space:]]+port=([0-9]+)[[:space:]]+reas
 while IFS= read -r line; do
   [[ -n "$line" ]] || continue
 
-  # TODO: Test $line against $pattern using [[ $line =~ $pattern ]]:
-  # Extract:
-  #   ip="${BASH_REMATCH[1]}"
-  #   port="${BASH_REMATCH[2]}"
-  #   reason="${BASH_REMATCH[3]}"
-  # Write: echo "$ip,$port,$reason" >> "$output"
+  # TODO: Match $line against $pattern using native regex matching:
+  # When matched, extract capture groups 1 (IP), 2 (Port), and 3 (Reason),
+  # then append them formatted as CSV (IP,PORT,REASON) to "$output".
 
   if false; then
     :

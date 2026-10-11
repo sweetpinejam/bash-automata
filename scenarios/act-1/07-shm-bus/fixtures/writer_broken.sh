@@ -8,9 +8,8 @@ set -euo pipefail
 # BROKEN: Writing to workspace disk path incurs physical storage latency
 BUS_FILE="disk_telemetry.dat"
 
-# TODO: Relocate to Linux shared memory RAM disk:
-# BUS_FILE="/dev/shm/telemetry_bus.dat"
-# trap 'rm -f "$BUS_FILE"' EXIT
+# TODO: Relocate high-frequency telemetry buffer to Linux shared memory (tmpfs)
+# and ensure the memory buffer is cleanly unlinked on script termination.
 
 for (( i=1; i<=100; i++ )); do
   echo "FRAME_$i load=0.55 temp=42C" > "$BUS_FILE"

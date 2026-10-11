@@ -34,7 +34,6 @@ if [ $? -eq 0 ]; then
 fi
 
 # TODO: Refactor the sequential pipeline above into clean short-circuit guard rails:
-# run_tests || { echo "ERROR: Tests failed" >&2; exit 1; }
-# build_bundle || { echo "ERROR: Build failed" >&2; exit 1; }
-# sign_bundle || { echo "ERROR: Signing failed" >&2; exit 1; }
-# echo "PUBLISH_SUCCESS"
+# Execute run_tests, build_bundle, and sign_bundle sequentially.
+# If any step fails, output an error to stderr and exit 1 immediately.
+# Upon full completion, output "PUBLISH_SUCCESS".

@@ -27,9 +27,10 @@ Every script, scenario, and tool in this platform strictly adheres to these five
 * **No Obsolete Syntax**: We do not teach archaic 1980s trivia, ancient `awk` gymnastics, or passive memorization. We teach modern, resilient Linux systems engineering.
 * **De-Mining Exercises**: Syntax is never taught in a vacuum. Every drill is a live production scenario (e.g., a broken automated cleanup bot, a leaking descriptor, or a silent deadlock).
 * **The "Never Get Stuck" Rule**:
-  * Every lesson includes a **1-page Field Manual (`lesson.md`)** with reading references, mental models, and cheatsheets.
+  * Every lesson includes a **1-page Field Manual (`lesson.md`)** with reading references, mental models, and cheatsheets (`[1]`).
   * Every lesson includes **progressive tactical hints (`[6]`)**.
-  * Every lesson includes the **reference working solution and post-mortem (`[7]`)**.
+  * Every lesson includes a **targeted code blueprint & almost-answer (`almost_answer.md` / `[7]`)** providing syntax skeletons without spoiling the full sandbox script.
+  * Every lesson includes the **full reference working solution and post-mortem (`solution.sh` / `[8]`)**.
 
 ---
 

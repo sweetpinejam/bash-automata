@@ -19,8 +19,7 @@ for (( i=1; i<=CYCLES; i++ )); do
   read -r line <&"$fd"
   echo "Cycle $i: $line" >> "$summary_file"
 
-  # TODO: Explicitly close the allocated descriptor:
-  # exec {fd}<&-
+  # TODO: Explicitly close the allocated file descriptor before the next iteration
 done
 
 echo "MONITOR_RUN_COMPLETE"

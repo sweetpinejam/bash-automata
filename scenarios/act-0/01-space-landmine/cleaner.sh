@@ -4,17 +4,16 @@
 # ==============================================================================
 # INSTRUCTIONS:
 # This automated cleanup bot sweeps files from $SRC_DIR into $DEST_DIR.
-# But because variables are unquoted, Bash splits on the space characters!
+# But directory and file names contain space characters, causing word splitting!
 #
-# Fix the unquoted variables below by wrapping them in double quotes:
-#   "$DEST_DIR"   and   "$SRC_DIR"/*
+# Harden the commands below to safely handle whitespace in paths.
 # ==============================================================================
 set -euo pipefail
 
 SRC_DIR="deploy artifacts"
 DEST_DIR="archived runs"
 
-# TODO: Quote these variables to prevent Word Splitting!
+# TODO: Harden directory creation and file movement against word splitting
 mkdir -p $DEST_DIR
 mv $SRC_DIR/* $DEST_DIR/
 

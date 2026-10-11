@@ -14,11 +14,12 @@ if [[ "${1:-}" == "--env" ]]; then
   env="${2:-development}"
 fi
 
-# TODO: Refactor using a while (( $# > 0 )) loop with case and shift:
-# - "-e" | "--env") env="$2"; shift 2 ;;
-# - "-d" | "--dry-run") dry_run="true"; shift ;;
-# - "-v" | "--verbose") verbose="true"; shift ;;
-# - *) echo "Unknown arg: $1" >&2; shift ;;
+# TODO: Refactor argument processing using a while loop with case matching and shift:
+# Support flags in any order:
+#   -e / --env: requires an environment argument (e.g., staging, prod)
+#   -d / --dry-run: sets dry_run to "true"
+#   -v / --verbose: sets verbose to "true"
+# Handle unknown options gracefully.
 
 cat <<EOF > migration.cfg
 ENV=$env

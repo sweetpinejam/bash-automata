@@ -217,6 +217,49 @@ class AutomataRunner:
             print(f" {badge} {h}")
         print()
 
+    def show_almost_answer(self, scenario_id: str) -> None:
+        scenario = self.registry.get_by_id(scenario_id)
+        if not scenario:
+            UI.failure(f"Scenario '{scenario_id}' not found.")
+            return
+
+        blueprint_file = scenario.dir_path / "almost_answer.md"
+        content = ""
+        if blueprint_file.exists():
+            content = blueprint_file.read_text(encoding="utf-8")
+        elif scenario.almost_answer:
+            content = scenario.almost_answer
+
+        if not content.strip():
+            UI.warning("No code blueprint or almost-answer recorded for this mission.")
+            UI.prompt("Use tactical intel [6] or study the briefing [1] to guide your solution.")
+            return
+
+        UI.heading(f"Code Blueprint & Almost-Answer: {scenario.title}")
+        UI.info("Targeted syntax pattern and mechanics (without giving the full scenario away):")
+        print()
+        in_code_block = False
+        for line in content.splitlines():
+            if line.startswith("```"):
+                in_code_block = not in_code_block
+                print(UI.colorize(f"   {line}", Colors.DIM))
+                continue
+
+            if in_code_block:
+                print(UI.colorize(f"   {line}", Colors.BRIGHT_YELLOW))
+            elif line.startswith("# "):
+                print(UI.colorize(f"\n▶ {line[2:]}", Colors.BRIGHT_CYAN, Colors.BOLD))
+            elif line.startswith("## "):
+                print(UI.colorize(f"\n◆ {line[3:]}", Colors.BRIGHT_WHITE, Colors.BOLD))
+            elif line.startswith("### "):
+                print(UI.colorize(f"\n  • {line[4:]}", Colors.BRIGHT_MAGENTA, Colors.BOLD))
+            elif line.startswith("> "):
+                print(UI.colorize(f"  ┃ {line[2:]}", Colors.YELLOW))
+            else:
+                print(f"  {line}")
+        print()
+        UI.prompt("Apply this pattern to your script in the sandbox and run verification.")
+
     def show_solution(self, scenario_id: str) -> None:
         scenario = self.registry.get_by_id(scenario_id)
         if not scenario:

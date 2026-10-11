@@ -240,11 +240,12 @@ class InteractiveGame:
             print("  [4] 🧪 Run State Verification (Test Fix)")
             print("  [5] 🔄 Instant Rollback (<2s)")
             print("  [6] 💡 Request Tactical Intel (Hints)")
-            print("  [7] 📜 View Reference Solution & Post-Mortem")
+            print("  [7] 🎯 View Code Blueprint (Almost-Answer / Snippet)")
+            print("  [8] 📜 View Full Reference Solution & Post-Mortem")
             print("  [b] ⬅️ Back to Mission Select")
             print()
 
-            choice = input("  >> Select action [1-7, b]: ").strip().lower()
+            choice = input("  >> Select action [1-8, b]: ").strip().lower()
 
             if choice in ("b", "back"):
                 break
@@ -266,6 +267,9 @@ class InteractiveGame:
                 self.runner.hint_scenario(scenario.id)
                 input("\n  Press Enter to return to mission room...")
             elif choice == "7":
+                self.runner.show_almost_answer(scenario.id)
+                input("\n  Press Enter to return to mission room...")
+            elif choice == "8":
                 self.runner.show_solution(scenario.id)
                 input("\n  Press Enter to return to mission room...")
             else:

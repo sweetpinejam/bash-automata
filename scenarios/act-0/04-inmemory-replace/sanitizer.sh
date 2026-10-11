@@ -10,10 +10,10 @@ output_file="events.sanitized"
 rm -f "$output_file"
 
 while IFS= read -r line; do
-  # TODO: In-memory string substitution:
+  # TODO: Perform in-memory pattern substitution on $line:
   # 1. Replace all occurrences of "dev.internal" with "prod.external"
   # 2. Replace all occurrences of "SECRET_" with "REDACTED_"
-  sanitized="$line"  # FIXME: Apply ${sanitized//.../...} transformations
+  sanitized="$line"
 
   echo "$sanitized" >> "$output_file"
 done < events.raw

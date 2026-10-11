@@ -9,11 +9,11 @@ action="${1:-help}"
 pid_file="service.pid"
 
 # TODO: Refactor into a case "$action" in ... esac dispatcher:
-# - "start": echo "$$" > "$pid_file"; echo "SERVICE_STARTED"
-# - "stop": rm -f "$pid_file"; echo "SERVICE_STOPPED"
-# - "status": if [[ -f "$pid_file" ]]; then echo "STATUS_RUNNING"; else echo "STATUS_STOPPED"; fi
-# - "-h" | "--help" | "help": echo "USAGE: service_ctl.sh {start|stop|status|-h|--help}"; exit 0
-# - "*": echo "ERROR: Unknown action '$action'" >&2; exit 1
+# - "start": record current PID ($$) into $pid_file, output "SERVICE_STARTED"
+# - "stop": remove $pid_file, output "SERVICE_STOPPED"
+# - "status": check if $pid_file exists, output "STATUS_RUNNING" or "STATUS_STOPPED"
+# - "-h" | "--help" | "help": output usage and exit 0
+# - "*": output error message to stderr and exit 1
 
 if [ "$action" = "start" ]; then
   echo "$$" > "$pid_file"

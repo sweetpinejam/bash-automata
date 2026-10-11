@@ -48,6 +48,17 @@ def build_parser() -> argparse.ArgumentParser:
     hint_p = subparsers.add_parser("hint", help="Request tactical intel & hints for scenario")
     hint_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
 
+    # automata blueprint <id>
+    bp_p = subparsers.add_parser("blueprint", help="View targeted code blueprint & almost-answer")
+    bp_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
+
+    aa_p = subparsers.add_parser("almost-answer", help="Alias for 'blueprint'")
+    aa_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
+
+    # automata solution <id>
+    sol_p = subparsers.add_parser("solution", help="View full reference solution and post-mortem")
+    sol_p.add_argument("id", help="Scenario ID (e.g. act-1-01-choked-pipe)")
+
     # automata doctor
     subparsers.add_parser("doctor", help="Audit host environment, kernel cgroups, and tools")
 
@@ -82,6 +93,10 @@ def main(args: Optional[List[str]] = None) -> int:
         runner.reset_scenario(parsed.id)
     elif parsed.command == "hint":
         runner.hint_scenario(parsed.id)
+    elif parsed.command in ("blueprint", "almost-answer"):
+        runner.show_almost_answer(parsed.id)
+    elif parsed.command == "solution":
+        runner.show_solution(parsed.id)
     elif parsed.command == "doctor":
         runner.doctor()
     else:

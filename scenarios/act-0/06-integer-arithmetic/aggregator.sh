@@ -17,14 +17,14 @@ while read -r status_part latency_part; do
   status="${status_part##*=}"
   latency="${latency_part##*=}"
 
-  # TODO: Refactor the arithmetic using pure Bash:
-  # 1. Increment total_count by 1 using (( total_count += 1 )) or (( ++total_count ))
-  # 2. Add latency to total_latency using (( total_latency += latency ))
+  # TODO: Refactor arithmetic increments using native Bash builtins:
+  # 1. Increment total_count by 1
+  # 2. Add latency to total_latency
   # 3. If status is >= 500, increment error_count by 1
-  total_count=$(expr $total_count + 1)            # FIXME: Use (( total_count += 1 ))
-  total_latency=$(expr $total_latency + $latency)  # FIXME: Use (( total_latency += latency ))
+  total_count=$(expr $total_count + 1)
+  total_latency=$(expr $total_latency + $latency)
   if [ $status -ge 500 ]; then
-    error_count=$(expr $error_count + 1)          # FIXME: Use (( error_count += 1 ))
+    error_count=$(expr $error_count + 1)
   fi
 done < samples.log
 

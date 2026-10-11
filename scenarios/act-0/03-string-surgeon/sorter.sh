@@ -12,11 +12,11 @@ for filepath in incoming/*; do
   # Ensure the glob matched an actual file
   [[ -f "$filepath" ]] || continue
 
-  # TODO: Extract filename and extension in-memory:
-  # 1. Strip leading path to get filename (e.g., "incoming/foo.js" -> "foo.js")
-  # 2. Extract trailing extension (e.g., "foo.js" -> "js", "bar.tar.gz" -> "gz")
-  filename="$filepath"   # FIXME: Replace with ${filepath##*/}
-  ext="unknown"          # FIXME: Replace with ${filename##*.}
+  # TODO: Extract filename and extension in-memory (no external binaries):
+  # 1. Strip leading path to isolate filename
+  # 2. Extract trailing extension
+  filename="$filepath"
+  ext="unknown"
 
   mkdir -p "categorized/$ext"
   mv "$filepath" "categorized/$ext/$filename"

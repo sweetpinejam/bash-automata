@@ -42,6 +42,7 @@ class Scenario:
     verification: ScenarioVerification
     dir_path: Path
     hints: List[str] = field(default_factory=list)
+    almost_answer: str = ""
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], dir_path: Path) -> Scenario:
@@ -69,6 +70,12 @@ class Scenario:
 
         hints = [str(h) for h in data.get("hints", [])]
 
+        almost_answer_file = dir_path / "almost_answer.md"
+        if almost_answer_file.exists():
+            almost_answer = almost_answer_file.read_text(encoding="utf-8")
+        else:
+            almost_answer = str(data.get("almost_answer", ""))
+
         return cls(
             id=data.get("id", dir_path.name),
             act=int(data.get("act", 1)),
@@ -83,6 +90,7 @@ class Scenario:
             verification=verification,
             dir_path=dir_path,
             hints=hints,
+            almost_answer=almost_answer,
         )
 
     @classmethod

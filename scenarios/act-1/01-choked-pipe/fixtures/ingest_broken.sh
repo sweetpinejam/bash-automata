@@ -3,8 +3,7 @@
 # Vulnerability: Stalls upstream producer when downstream consumer throttles.
 set -euo pipefail
 
-# TODO: Refactor using named pipes (mkfifo) and background process supervision.
-# Trap exit signals to ensure the FIFO is unlinked cleanly:
-#   trap 'rm -f "$FIFO_PATH"' EXIT INT TERM
+# TODO: Refactor using a non-blocking named pipe (mkfifo) and background consumer.
+# Register an EXIT trap to ensure the FIFO is cleanly unlinked.
 
 cat | python3 process.py

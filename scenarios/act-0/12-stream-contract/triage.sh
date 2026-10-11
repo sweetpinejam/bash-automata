@@ -6,9 +6,6 @@
 # Modify the function call below so that:
 #   1. Standard data (stdout / FD 1) is redirected to: clean.log
 #   2. Error diagnostics (stderr / FD 2) are redirected to: error.log
-#
-# SYNTAX TEMPLATE:
-#   command > clean.log 2> error.log
 # ==============================================================================
 set -euo pipefail
 

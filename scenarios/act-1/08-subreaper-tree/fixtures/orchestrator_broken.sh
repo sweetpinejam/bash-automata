@@ -20,8 +20,8 @@ echo "ORCHESTRATOR: Shutting down workload..."
 # The 3 grandchildren in grandchildren.pids survive and keep running forever!
 kill -TERM "$pipeline_pid" 2>/dev/null || true
 
-# TODO: Kill the entire process group, or ensure pipeline.sh traps EXIT and kills its group:
-# kill -TERM -- "-$pipeline_pid" 2>/dev/null || true
+# TODO: Deliver the termination signal to the entire process group (PGID)
+# so background grandchild workers do not get orphaned.
 
 wait "$pipeline_pid" 2>/dev/null || true
 echo "TEARDOWN_FINISHED"

@@ -16,18 +16,7 @@ else
 fi
 
 # TODO: Refactor using a while loop with exponential backoff:
-# attempt=1
-# max_attempts=4
-# delay_ms=20
-#
-# while (( attempt <= max_attempts )); do
-#   if ./mock_service.sh; then
-#     echo "SERVICE_READY"
-#     exit 0
-#   fi
-#   sleep "0.0$delay_ms"
-#   (( attempt += 1 ))
-#   (( delay_ms *= 2 ))
-# done
-# echo "PROBE_TIMEOUT" >&2
-# exit 1
+# - Track attempts (start at 1, max 4) and backoff delay
+# - If ./mock_service.sh succeeds, output "SERVICE_READY" and exit 0
+# - Otherwise, sleep for the current delay, increment attempt, and double the delay
+# - If all attempts are exhausted, output "PROBE_TIMEOUT" to stderr and exit 1
