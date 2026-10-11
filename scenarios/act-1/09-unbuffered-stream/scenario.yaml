@@ -31,6 +31,6 @@ verification:
     - "'events.stream' contains all streamed events"
 
 hints:
-  - "The C standard library (stdio) defaults to 4KB/8KB block buffering when writing to a pipe."
-  - "To force line buffering on any binary: 'stdbuf -oL -eL command'."
-  - "GNU grep provides '--line-buffered', sed provides '-u'."
+  - "Diagnostic: Trace output writes using 'strace -e write bash pipeline.sh'. Notice that stdout issues writes only when 4096 bytes accumulate rather than on every newline."
+  - "Mechanism: The GNU C library (glibc) queries 'isatty(3)'. When connected to a pipe or file, stdout switches to _IOFBF (block-buffered), trapping data inside user-space stdio memory."
+  - "Blueprint: Force line-buffered mode (_IOLBF) on the filter utility using tool-specific flags like '--line-buffered' or wrap the command with GNU 'stdbuf -oL'."

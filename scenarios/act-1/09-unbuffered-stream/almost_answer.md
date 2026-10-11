@@ -1,14 +1,43 @@
-# Code Blueprint: Stream Pipeline Line-Buffering
+# Structural Scaffolding: Stream Pipeline Line-Buffering
 
-By default, GNU C library (`glibc`) buffers pipes in 4096-byte blocks. Force immediate output per line using `--line-buffered` or `stdbuf`:
+When streaming event data through intermediate command-line filters across pipes, standard utilities buffer stdout in 4,096-byte blocks, preventing real-time delivery.
+
+---
+
+## Pattern A: Utility-Specific Line-Buffering
+
+For tools that provide native command-line options:
 
 ```bash
-# Blueprint Pattern:
-# With GNU grep:
-bash producer.sh | grep --line-buffered "ALERT" > "$output_file"
+# GNU grep:
+producer | grep --line-buffered "PATTERN" > "$output_file"
 
-# Or with stdbuf utility for generic tools:
-stdbuf -oL -eL bash producer.sh | grep --line-buffered "ALERT" > "$output_file"
+# GNU sed:
+producer | sed -u 's/filter/replacement/' > "$output_file"
+
+# Python scripts:
+python3 -u processor.py
 ```
 
-> **Key Rule**: Piping stdout to a file or another process switches glibc stream buffering from line-buffered (`\n`) to block-buffered (4KB). `--line-buffered` prevents downstream stall.
+---
+
+## Pattern B: Universal Libc Stream Injection (`stdbuf`)
+
+For utilities without native line-buffering flags:
+
+```bash
+# -oL forces stdout to line-buffered (_IOLBF)
+# -eL forces stderr to line-buffered
+stdbuf -oL -eL generic_tool | downstream_consumer
+```
+
+---
+
+## Verifying Real-Time Stream Delivery
+
+Observe real-time arrival of streaming events without block delays:
+```bash
+# Follow the live stream:
+tail -f events.stream
+```
+Every event should appear in the output stream as soon as the producer emits it.
