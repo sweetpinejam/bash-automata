@@ -82,6 +82,68 @@ Every script, scenario, and tool in this platform strictly adheres to these five
   * `1.09: The Unbuffered Stream` — Defeating libc 4KB stdio block-buffering latency stalls using line-buffering (`stdbuf -oL`, `--line-buffered`).
   * `1.10: The Kernel Cgroup Throttle` — Preventing OOM killer slaughter under 32MB cgroups using O(1) constant-memory streaming pipelines.
 * **Track 2: Process Control, Concurrency & IPC** (Missions 2.01 – 2.10)
+  * `2.01: The Token Bucket Semaphore` — Limiting parallel subshell concurrency to $N=4$ slots using a FIFO token bucket without `xargs`.
+  * `2.02: The Runaway Worker Pool` — Dynamic job queue draining with `wait -n` worker slot replenishment and sentinel shutdown tokens.
+  * `2.03: The Flaking Healthcheck Latch` — Consecutive failure threshold sliding window in pure Bash to avoid premature rollback on transient blips.
+  * `2.04: The Unix Socket Handoff` — Safe atomic Unix domain socket (`/tmp/*.sock`) lifecycle management and pre-flight validation.
+  * `2.05: The Parallel Map-Reduce Stream` — Partitioned concurrent background mapping with PID array tracking and barrier reduction.
+  * `2.06: The Self-Healing Watchdog Heartbeat` — Timestamp staleness detection (`$(( $(date +%s) - ts )) > threshold`) with auto-recovery and forced SIGKILL escalation.
+  * `2.07: The Two-Way Coprocess Dialogue` — Interactive protocol negotiation using Bash `coproc` file descriptors `${NAME[0]}` and `${NAME[1]}` without pipe stalls.
+  * `2.08: The Cascading Timeout Shield` — Subprocess execution watchdog with subshell timers and signal cancellation to prevent cascading thread starvation.
+  * `2.09: The Advisory Lock Contest` — Preventing concurrent database corruption using Linux kernel `flock(1)` on dedicated file descriptors (`exec 200>`).
+  * `2.10: The Graceful Drain Teardown` — Kubernetes-style pod teardown: trapping `SIGTERM`, setting a draining latch, finishing active in-flight jobs, and exiting cleanly.
+
 * **Track 3: The Dynamic Duo (Bash + Python Stream Synergy)** (Missions 3.01 – 3.10)
+  * `3.01: The JSON Stream Pipeline` — High-velocity NDJSON parsing piping Bash stream into zero-dep Python `sys.stdin` stream processors.
+  * `3.02: The Prometheus Metric Exporter` — Pure Bash + Python endpoint converting internal service logs into OpenMetrics exposition format.
+  * `3.03: The CSV Multi-Column Aggregator` — Large-scale log metric summarization bypassing slow subshell loops.
+  * `3.04: The Config Schema Validator` — Pre-flight schema validation before deployment execution.
+  * `3.05: The Tar Streaming Filter` — Filtering and inspecting tar archive streams on the fly without extracting to disk.
+  * `3.06: The Socket Ping-Pong Service` — Simulated microservice RPC communication over localhost TCP ports.
+  * `3.07: The Event Dispatch Bus` — Pub/sub message fan-out using named pipes and Python subscribers.
+  * `3.08: The Rate-Limiting Leaky Bucket` — Ingest throttling with sub-millisecond delay control.
+  * `3.09: The Log Redaction Pipeline` — Streaming PII/Secret scrubber with zero disk leak.
+  * `3.10: The Dynamic Config Hot-Reload` — In-flight JSON configuration reload across active running daemons.
+
 * **Track 4: Simulated Web, Sockets & DevOps** (Missions 4.01 – 4.10)
+  * `4.01: The Mock HTTP Gateway` — Pure `/dev/tcp` or Python socket lightweight HTTP health responder.
+  * `4.02: The Blue-Green Traffic Switcher` — Reverse proxy upstream config re-pointing and reload.
+  * `4.03: The SSL Certificate Expiry Alert` — Automated TLS certificate inspection and metric emission.
+  * `4.04: The Slowloris Connection Reaper` — Detecting and killing stale half-open TCP connections.
+  * `4.05: The Database Migration Guard` — Pre-migration lock acquisition, schema verification, and rollback safety.
+  * `4.06: The Disk Space Quota Warden` — Automated emergency log rotation when partition usage exceeds 90%.
+  * `4.07: The Distributed Trace Propagator` — Passing `TRACE_ID` headers across piped service invocations.
+  * `4.08: The Git Hook Safety Latch` — Zero-external-dependency pre-push verification and secret detection.
+  * `4.09: The Mock Webhook Relayer` — Resilient HTTP POST event webhook dispatcher with retry queue.
+  * `4.10: The Incident Post-Mortem Scribe` — Automated incident artifact bundler generating Markdown post-mortems.
+
 * **Track 5: Algorithmic Automation & Intelligent Systems** (Missions 5.01 – 5.10)
+  * `5.01: The Dependency DAG Resolver` — Topological sort of build tasks in pure Bash and Python.
+  * `5.02: The Binary Search Log Bisect` — Finding the exact commit/log timestamp of regression via bisect automation.
+  * `5.03: The Anomaly Spike Detector` — Statistical standard deviation calculation over time-series metric logs.
+  * `5.04: The Consistent Hash Load Balancer` — Deterministic request routing to mock backend nodes.
+  * `5.05: The Sliding Window Rate Limiter` — Millisecond-resolution sliding window request counter.
+  * `5.06: The Memory Heap Leak Profiler` — Tracking process RSS growth in `/proc/$PID/statm` over time.
+  * `5.07: The Automated Rollback Heuristic` — Evaluating error budget burn rate to trigger auto-rollback.
+  * `5.08: The Chaos Engineering Fault Injector` — Injecting packet delay, SIGSTOP, and disk fills into running services.
+  * `5.09: The Secret Zeroization Bot` — Scrubbing sensitive environment variables and memory files from worker dumps.
+  * `5.10: The Autonomous Incident Commander` — Multi-step incident diagnosis, triage, remediation, and verification orchestrator.
+
+---
+
+## 5. Architectural Standards for Advanced Acts (Acts 2 – 5)
+
+To maintain realistic engineering depth without bloated boilerplate:
+
+1. **Multi-Component Architecture**:
+   Each scenario includes 2–3 cooperating components (e.g. background supervisor daemon, mock workload generator, health probe).
+2. **Realistic Symptoms over Script Toys**:
+   Briefings describe real infrastructure alarms (rate-limit 429s, deadlock freezes, zombie leaks). Trainees inspect live processes, logs, and state files.
+3. **Smart, Surgical Fixes**:
+   Fixes focus on resilient systems engineering primitives (kernel syscalls, concurrency primitives, atomic operations, signals).
+4. **Four-Tier Learning Hierarchy**:
+   Every scenario provides:
+   - `[1] Field Manual (`lesson.md`)` — Deep mental models, architecture ASCII diagram, POSIX mechanics.
+   - `[6] Tactical Intel` — 3 progressive hints.
+   - `[7] Code Blueprint (`almost_answer.md`)` — Targeted syntax pattern and mechanics.
+   - `[8] Reference Solution (`solution.sh`)` — Complete working code and post-mortem analysis.
