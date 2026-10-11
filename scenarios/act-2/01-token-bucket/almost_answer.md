@@ -1,38 +1,58 @@
-# Code Blueprint: Pure POSIX Concurrency Limiter (FIFO Token Bucket)
+# Structural Scaffolding: Pure POSIX Concurrency Limiter (FIFO Token Bucket)
 
-Implement a counting semaphore in pure Bash using a named pipe and file descriptor:
+To throttle background task dispatching without external tools (`xargs -P` or GNU `parallel`), implement a counting semaphore using a POSIX named pipe and file descriptor.
+
+---
+
+## Pattern: Bidirectional FIFO Semaphore
 
 ```bash
-# Blueprint Pattern:
 CONCURRENCY=4
 FIFO="/tmp/sem_$$.fifo"
 mkfifo "$FIFO"
-# Open FIFO for read & write on FD 3 to avoid EOF closing:
+
+# 1. Open FIFO bidirectional to prevent EOF termination on empty reads:
 exec 3<>"$FIFO"
+# 2. Immediately unlink pathname so no dangling file remains on disk:
 rm -f "$FIFO"
 
-# Pre-populate token bucket with exactly N tokens:
+# Guarantee descriptor cleanup on script exit:
+MAIN_PID=$$
+trap 'if [[ "$BASHPID" == "$MAIN_PID" ]]; then exec 3>&- 2>/dev/null || true; fi' EXIT
+
+# 3. Pre-seed the bucket with N tokens:
 for (( i=0; i<CONCURRENCY; i++ )); do
-  echo >&3
+    echo >&3
 done
 
+# 4. Dispatch loop:
 while IFS= read -r item || [[ -n "$item" ]]; do
-  [[ -n "$item" ]] || continue
+    [[ -n "$item" ]] || continue
 
-  # Acquire token (blocks if all 4 slots are occupied):
-  read -u 3
+    # ACQUIRE: blocks if all N tokens are in use
+    read -u 3
 
-  # Run worker in background; replenish token upon exit:
-  (
-    python3 mock_api.py "$item"
-    echo >&3  # Release token back to bucket
-  ) &
+    # Launch worker in background; release token on completion
+    (
+        run_worker "$item" || true
+        echo >&3   # RELEASE: returns token to FD 3
+    ) &
 done < "$QUEUE_FILE"
 
-# Wait for all background workers to finish:
+# 5. Barrier: Wait for all background subshells to complete
 wait
-# Close FD 3:
+
+# 6. Teardown
 exec 3>&-
 ```
 
-> **Key Rule**: Opening the FIFO with `exec 3<>"$FIFO"` holds it open for both reading and writing, preventing `read -u 3` from hitting premature EOF when empty.
+---
+
+## Verifying Concurrency Bounds
+
+Inspect active worker subshells during execution:
+```bash
+# Monitor active worker subshells:
+watch -n 0.1 'ps aux | grep "[m]ock_api" | wc -l'
+```
+The active count should never exceed 4 at any moment.

@@ -34,6 +34,6 @@ verification:
     - "Zero HTTP 429 rate limit breaches recorded in API telemetry ledger"
 
 hints:
-  - "Create a named pipe using 'mkfifo' and bind it to a custom file descriptor using 'exec 3<>\"$FIFO\"'."
-  - "Pre-seed exactly 4 tokens into the descriptor by writing 4 lines ('echo >&3')."
-  - "Before launching each worker in background, consume a token with 'read -u 3'. When the background worker exits, write a token back: '( job; echo >&3 ) &'."
+  - "Diagnostic: Inspect active file descriptors with 'ls -l /proc/$$/fd' and query 'api_state.json' after execution. Notice that without a semaphore, active jobs spike to 16, resulting in HTTP 429 rate-limiting breaches."
+  - "Mechanism: A POSIX counting semaphore can be constructed in pure Bash using a named pipe (FIFO) bound to a bidirectional file descriptor (exec 3<>\"$FIFO\"). Opening bidirectional prevents EOF on empty reads."
+  - "Blueprint: Pre-populate the descriptor with exactly 4 tokens, consume a token using 'read -u 3' prior to background forking, and return the token upon task completion inside the worker subshell."
