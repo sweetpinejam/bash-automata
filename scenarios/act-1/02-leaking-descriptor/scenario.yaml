@@ -11,8 +11,8 @@ limits:
   pids_limit: 30
 
 briefing:
-  situation: "A microservice health monitor ('monitor.sh') opens custom file descriptors (FD 3) to stream service status files. Because it fails to close them, file descriptors accumulate in /proc/$$/fd until hitting the operating system limit ('Too many open files'), crashing the monitor daemon."
-  objective: "Refactor 'monitor.sh' to manage file descriptor lifecycle defensively: ensure FD 3 is explicitly closed with 'exec 3<&-' after each poll cycle, preventing descriptor table exhaustion across 50 poll cycles."
+  situation: "An automated node health monitor daemon ('monitor.sh') dynamically allocates custom file descriptors in a polling loop to inspect device status files. Because it fails to release them, descriptors accumulate in the process table until hitting OS limits ('ulimit -n'), crashing with 'Too many open files'."
+  objective: "Refactor 'monitor.sh' to manage the complete file descriptor lifecycle defensively: ensure allocated descriptors are explicitly closed using 'exec {fd}<&-' on every cycle, preventing table exhaustion across 50 polling cycles under a strict 'ulimit -n 25' ceiling."
 
 files:
   workspace_dir: "workspace"
@@ -24,12 +24,11 @@ verification:
   test_script: "verify.py"
   chaos_command: ""
   pass_criteria:
-    - "'monitor.sh' runs 50 polling cycles with exit code 0"
-    - "No file descriptor leaks in /proc/$$/fd (FD 3 closed after each cycle)"
+    - "'monitor.sh' completes 50 polling cycles with exit code 0"
+    - "No file descriptor leaks in /proc/$$/fd under restrictive 'ulimit -n 25'"
     - "Health summary written to 'monitor.summary'"
 
 hints:
-  - "To open an input file descriptor 3: 'exec 3< \"$file\"'."
-  - "To read from file descriptor 3: 'read -r line <&3'."
-  - "To close input file descriptor 3: 'exec 3<&-'."
-  - "To inspect open descriptors of a running shell process: 'ls -l /proc/$$/fd'."
+  - "To inspect file descriptors allocated by a running shell process in real-time, list the symlinks in 'ls -l /proc/$$/fd'. When descriptor table exhaustion occurs, the kernel returns error code EMFILE: 'Too many open files'."
+  - "Bash allows allocating dynamic file descriptors using 'exec {var}< \"$file\"' (assigning the lowest available integer >= 10). Unlike subshell redirects, descriptors opened with 'exec' remain open until explicitly closed."
+  - "To close an input file descriptor and recycle its slot in the process table, use the redirection closure operator: 'exec {var}<&-'."

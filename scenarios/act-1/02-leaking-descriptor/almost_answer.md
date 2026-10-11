@@ -1,17 +1,25 @@
-# Code Blueprint: Dynamic File Descriptor Allocation & Reclamation
+# Tactical Blueprint: Managing File Descriptor Lifecycles (`exec {fd}<&-`)
 
-When dynamically allocating file descriptors (`exec {fd}< ...`), Linux kernel tables retain each open descriptor until explicitly closed:
+To prevent process table exhaustion and `EMFILE: Too many open files` errors when allocating custom file descriptors:
+
+---
+
+## 1. Dynamic Allocation and Explicit Closure
 
 ```bash
-# Blueprint Pattern:
-# Allocate descriptor dynamically into variable $fd:
-exec {fd}< "$status_file"
+# Allocate dynamic input descriptor (assigned an unused integer >= 10):
+exec {fd}< "$path"
 
-# Read through descriptor:
-read -r line <&"$fd"
+# Read from custom descriptor:
+read -r payload <&"$fd"
 
-# Close the allocated file descriptor:
+# CRUCIAL: Release the table slot when finished:
 exec {fd}<&-
 ```
 
-> **Key Rule**: The syntax `exec {fd}<&-` tells the shell to close input descriptor `{fd}`. Without this, repeated loops exhaust the process `RLIMIT_NOFILE` quota.
+---
+
+## 2. Redirection Syntax Breakdown
+* `exec {fd}< "$file"`: Asks the kernel to open `$file` for reading and store the resulting descriptor index in variable `$fd`.
+* `<&"$fd"`: Redirects the preceding command's standard input to read from the descriptor index stored in `$fd`.
+* `exec {fd}<&-`: The minus sign (`-`) closes the descriptor, calling `close(fd)` at the kernel level and recycling the slot in the process table.
